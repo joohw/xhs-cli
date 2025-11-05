@@ -1,6 +1,8 @@
 # MCP 使用指南
 
-本项目已实现完整的 MCP (Model Context Protocol) 服务器，可以通过 Claude Desktop 或其他支持 MCP 的客户端使用。
+本项目已实现完整的 MCP (Model Context Protocol) 服务器，可以通过 Claude Desktop、Cursor 或其他支持 MCP 的客户端使用。
+
+> 💡 **Cursor 用户**: 请查看 [CURSOR_MCP.md](./CURSOR_MCP.md) 获取 Cursor 专用配置指南
 
 ## 前置要求
 

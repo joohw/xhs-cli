@@ -222,7 +222,7 @@ export async function getNoteStatisticsCommand(): Promise<void> {
     }
     
     const responseData = JSON.parse(mcpResponse.content[0].text);
-    const data = responseData.notes;
+    const data = responseData.notes as NoteDetail[];
 
     if (data.length === 0) {
       console.log('❌ 未找到笔记数据');
@@ -232,7 +232,7 @@ export async function getNoteStatisticsCommand(): Promise<void> {
     console.log(`\n📝 近期笔记列表 (共 ${data.length} 篇)\n`);
     console.log('='.repeat(60));
     
-    data.forEach((note, index) => {
+    data.forEach((note: NoteDetail, index: number) => {
       console.log(`\n📄 笔记 ${index + 1}/${data.length}`);
       console.log('-'.repeat(40));
       console.log(serializeNoteDetail(note));

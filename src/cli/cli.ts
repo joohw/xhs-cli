@@ -5,6 +5,7 @@ import { getOperationDataCommand } from './get_operation_data.js';
 import { getNoteStatisticsCommand } from './get_note_statistics.js';
 import { getNoteDetailByIdCommand} from './get_note_detail_by_id.js';
 import { getMyProfileCommand } from './get_my_profile.js';
+import { setupCursor } from './setup_cursor.js';
 
 // 获取命令行参数
 const args = process.argv.slice(2);
@@ -45,6 +46,9 @@ const commands: Record<string, () => Promise<void>> = {
   'get-my-profile': async () => {
     await getMyProfileCommand();
   },
+  'setup-cursor': async () => {
+    await setupCursor();
+  },
 };
 
 
@@ -53,6 +57,7 @@ function showHelp() {
   console.log('可用命令:');
   console.log('  login                    - 登录小红书');
   console.log('  check-login              - 检查登录状态');
+  console.log('  setup-cursor             - 一键配置 Cursor MCP 服务器');
   console.log('  get_operation_data       - 获取近期笔记运营数据');
   console.log('  get-note-statistics      - 获取近期笔记（从笔记管理页面）');
   console.log('  update-detailed-statistics - 更新缓存中的详细统计数据（从数据统计分析页面）');
@@ -66,6 +71,7 @@ function showHelp() {
   console.log('示例:');
   console.log('  npm run xhs login');
   console.log('  npm run xhs check-login');
+  console.log('  npm run xhs setup-cursor     # 一键配置 Cursor MCP');
   console.log('  npm run xhs get-overall-data');
   console.log('  npm run xhs get-note-statistics');
   console.log('  npm run xhs update-detailed-statistics');

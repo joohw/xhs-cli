@@ -5,17 +5,16 @@
 import { login } from './core/login.js';
 import { checkLoginState } from './core/check_login_state.js';
 import { getOperationData } from './core/get_operation_data.js';
-import { getNoteDetail} from './core/get_note_detail.js';
+import { getNoteDetail } from './core/get_note_detail.js';
 import { getMyProfile } from './core/get_my_profile.js';
 import { getRecentNotes } from './core/get_recent_notes.js';
 import { postNote, loadPostFromQueue, selectPostInteractively } from './core/post.js';
-import { writePost } from './core/writePost.js';
 import { listQueuePostCommand } from './core/list_available_post.js';
 import { serializeOperationData } from './types/operationData.js';
 import { serializeUserProfile } from './types/userProfile.js';
-import { serializeNoteDetail } from './types/note.js';
-import { POST_QUEUE_DIR } from './config.js';
-import { join } from 'path';
+import { serializeNote, serializeNoteDetail } from './types/note.js';
+import { setupMCP } from './scripts/setup_mcp.js';
+
 
 
 // 获取命令行参数
@@ -38,7 +37,13 @@ const commands: Record<string, () => Promise<void>> = {
     }
   },
   'check-login': async () => {
-    await checkLoginState();
+    const { isLoggedIn, ttl } = await checkLoginState();
+    console.error(`登录状态: ${isLoggedIn ? '已登录' : '未登录'}`);
+    if (ttl) {
+      console.error(`Cookie 有效期: ${ttl} 秒`);
+    } else {
+      console.error('Cookie 已过期');
+    }
   },
   'get-operation-data': async () => {
     try {
@@ -50,7 +55,25 @@ const commands: Record<string, () => Promise<void>> = {
     }
   },
   'get-recent-notes': async () => {
-    await getRecentNotes(); // CLI 调用时忽略返回值
+    try {
+      console.error('📥 获取近期笔记列表...\n');
+      const data = await getRecentNotes();
+      if (data.length === 0) {
+        console.error('❌ 未找到笔记数据');
+        return;
+      }
+      console.error(`\n📝 近期笔记列表 (共 ${data.length} 篇)\n`);
+      console.error('='.repeat(60));
+      data.forEach((note, index) => {
+        console.error(`\n📄 笔记 ${index + 1}/${data.length}`);
+        console.error('-'.repeat(40));
+        console.error(serializeNote(note));
+      });
+      console.error('\n💾 笔记数据已保存到缓存（notes/ 文件夹）\n');
+    } catch (error) {
+      console.error('❌ 获取笔记列表失败:', error instanceof Error ? error.message : error);
+      process.exit(1);
+    }
   },
   'get-note-detail-by-id': async () => {
     const noteId = commandArgs[0];
@@ -127,39 +150,18 @@ const commands: Record<string, () => Promise<void>> = {
       process.exit(1);
     }
   },
-  'add-post': async () => {
-    if (commandArgs.length === 0) {
-      console.error('❌ 错误: 必须提供 post 内容');
-      console.error('💡 使用方法: npm run xhs add-post <content> [--title <title>] [--images <images>] [--scheduled-time <time>]');
-      console.error('💡 计划发布时间格式: ISO 8601 (如 "2024-01-01T10:00:00Z" 或 "2024-01-01 10:00:00")');
-      process.exit(1);
-    }
-    let title: string | undefined;
-    let images: string[] | undefined;
-    let scheduledPublishTime: string | undefined;
-    const content = commandArgs[0];
-    // 解析参数
-    for (let i = 1; i < commandArgs.length; i++) {
-      const arg = commandArgs[i];
-      if (arg === '--title' && i + 1 < commandArgs.length) {
-        title = commandArgs[++i];
-      } else if (arg === '--images' && i + 1 < commandArgs.length) {
-        images = commandArgs[++i].split(',').map(img => img.trim());
-      } else if (arg === '--scheduled-time' && i + 1 < commandArgs.length) {
-        scheduledPublishTime = commandArgs[++i];
-      }
-    }
-    try {
-      const queueFilename = writePost(title, content, images, scheduledPublishTime);
-      console.error(`✅ Post 已添加到队列: ${queueFilename}`);
-      console.error(`📁 文件路径: ${join(POST_QUEUE_DIR, queueFilename)}`);
-    } catch (error) {
-      console.error('❌ 添加失败:', error instanceof Error ? error.message : error);
-      process.exit(1);
-    }
-  },
   'list-available-post': async () => {
     listQueuePostCommand();
+  },
+  'setup-mcp': async () => {
+    const targets: ('claude' | 'cursor')[] = [];
+    if (commandArgs.includes('--claude') || commandArgs.includes('--all')) {
+      targets.push('claude');
+    }
+    if (commandArgs.includes('--cursor') || commandArgs.includes('--all')) {
+      targets.push('cursor');
+    }
+    await setupMCP(targets.length > 0 ? targets : undefined);
   },
 };
 

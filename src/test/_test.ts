@@ -7,15 +7,12 @@ export async function openTestBrowser(): Promise<void> {
   // 使用 browser 模块启动非无头浏览器
   const browser = await launchBrowser(false);
   const page = await browser.newPage();
-  
   await page.goto('https://creator.xiaohongshu.com/new/home', {
     waitUntil: 'domcontentloaded',
     timeout: 30000,
   });
-  
   console.log('✅ 浏览器已打开，可以开始调试\n');
   console.log('提示: 浏览器将保持打开状态，请手动关闭\n');
-  
   // 不关闭浏览器，让用户手动关闭
   // browser 对象会被垃圾回收，但浏览器进程会保持运行
 }

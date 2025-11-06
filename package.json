@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "面向个人创作者的小红书 CLI 工具和 MCP 服务器 - 帮助创作者管理、分析和发布小红书内容",
   "type": "module",
-  "main": "dist/index.js",
+  "main": "dist/mcp/index.js",
   "types": "dist/index.d.ts",
   "bin": {
     "xhs": "./dist/cli.js"
@@ -15,14 +15,14 @@
   ],
   "scripts": {
     "build": "tsc",
-    "prepublishOnly": "npm run build && npm run prepare-npm-readme",
-    "prepare-npm-readme": "cp README.npm.md README.md",
     "postpublish": "git checkout README.md",
-    "dev": "tsx watch --clear-screen=false src/index.ts",
     "xhs": "tsx src/cli.ts",
-    "start": "node dist/index.js",
-    "test": "tsx src/test/_test.ts",
-    "test:mcp": "tsx src/mcp/test.ts"
+    "start": "node dist/mcp/index.js",
+    "setup": "tsx src/scripts/setup_mcp.ts",
+    "setup:claude": "tsx src/scripts/setup_mcp.ts --claude",
+    "setup:cursor": "tsx src/scripts/setup_mcp.ts --cursor",
+    "setup:all": "tsx src/scripts/setup_mcp.ts --all",
+    "test": "tsx src/test/_test.ts"
   },
   "keywords": [
     "mcp",

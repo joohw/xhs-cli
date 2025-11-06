@@ -48,7 +48,6 @@ function findChromePath(): string | null {
 // 启动浏览器（支持无头模式）
 export async function launchBrowser(headless: boolean = true): Promise<Browser> {
   const chromePath = findChromePath();
-  // 使用固定的用户数据目录，保持登录状态
   const userDataDir = join(homedir(), '.xhs-mcp', 'browser-data');
   if (!existsSync(userDataDir)) {
     mkdirSync(userDataDir, { recursive: true });
@@ -63,6 +62,8 @@ export async function launchBrowser(headless: boolean = true): Promise<Browser> 
       '--disable-dev-shm-usage',
       '--disable-gpu',
       '--disable-blink-features=AutomationControlled',
+      '--disable-restore-session-state',
+      '--disable-session-crashed-bubble',
     ],
     defaultViewport: headless ? { width: 1280, height: 720 } : null,
   };

@@ -20,7 +20,7 @@ export function getTools() {
       },
     },
     {
-      name: 'xhs_get_note_statistics',
+      name: 'xhs_get_recent_notes',
       description: '获取近期笔记统计数据（从笔记管理页面）',
       inputSchema: {
         type: 'object',
@@ -53,20 +53,6 @@ export function getTools() {
           },
         },
         required: ['noteId'],
-      },
-    },
-    {
-      name: 'xhs_get_all_notes_detail',
-      description: '批量获取所有笔记的详情（基于缓存中的笔记列表）',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          refresh: {
-            type: 'boolean',
-            description: '是否强制刷新缓存，默认为false',
-            default: false,
-          },
-        },
       },
     },
     {

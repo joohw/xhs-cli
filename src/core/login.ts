@@ -5,7 +5,6 @@ import puppeteer, { Browser, Page } from 'puppeteer';
 import { existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { homedir, platform } from 'os';
-import { saveCookie } from '../auth/cookie.js';
 import { getUserProfile } from './get_my_profile.js';
 import type { UserProfile } from '../types/userProfile.js';
 
@@ -151,9 +150,6 @@ async function waitForLogin(page: Page, timeout: number = 180000): Promise<boole
             });
             // 如果能访问创作者中心，说明已登录
             if (canAccessCreator) {
-              // 登录成功，获取cookie
-              const cookies = await page.cookies('https://creator.xiaohongshu.com');
-              const webSessionCookie = cookies.find(c => c.name === 'web_session');
               return true;
             }
           }
@@ -188,16 +184,12 @@ async function login(): Promise<UserProfile | null> {
     const currentUrl = page.url();
     const isLoginPage = currentUrl.includes('/login') || currentUrl.includes('/signin');
     if (!isLoginPage && currentUrl.includes('creator.xiaohongshu.com')) {
-      const cookies = await page.cookies('https://creator.xiaohongshu.com');
-      saveCookie(cookies);
       const userProfile = await getUserProfile(page);
       return userProfile;
     } else {
       console.error('⏰ 您有 120 秒时间完成登录\n');
       const loginSuccess = await waitForLogin(page, 120000);
       if (loginSuccess) {
-        const cookies = await page.cookies('https://creator.xiaohongshu.com');
-        saveCookie(cookies);
         const userProfile = await getUserProfile(page);
         return userProfile;
       } else {

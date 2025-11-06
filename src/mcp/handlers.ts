@@ -11,7 +11,7 @@ import { getRecentNotes } from '../core/get_recent_notes.js';
 import { serializeNote, serializeNoteDetail } from '../types/note.js';
 import { serializeOperationData } from '../types/operationData.js';
 import { formatForMCP, formatErrorForMCP } from './format.js';
-import { existsSync, statSync } from 'fs';
+import { existsSync, statSync, readdirSync } from 'fs';
 import { join } from 'path';
 
 
@@ -52,11 +52,7 @@ export async function handleGetOverallData() {
 // 获取笔记统计(MCP格式)
 export async function handleGetRecentNotes(limit?: number) {
   try {
-    const isLoggedIn = await checkLoginState();
-    if (!isLoggedIn) {
-      return formatErrorForMCP(new Error('未登录状态。请先确保已登录小红书。'));
-    }
-    const data = await getRecentNotes(); // 获取返回值并格式化
+    const data = await getRecentNotes();
     const limitedData = limit ? data.slice(0, limit) : data;
     return formatForMCP(
       {

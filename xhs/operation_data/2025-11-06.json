@@ -1,0 +1,68 @@
+{
+  "data": {
+    "date": "2025-11-06",
+    "totalFans": "26",
+    "newFans": "0",
+    "lostFans": "0",
+    "netFansGrowth": "0",
+    "totalLikes": "0",
+    "totalCollects": "0",
+    "totalComments": "0",
+    "totalShares": "0",
+    "publishedNotes": "0",
+    "noteReads": "0",
+    "noteReadRate": "0",
+    "avgReadTime": "0",
+    "homePageVisitors": "0",
+    "trafficSources": [],
+    "fanInterests": [],
+    "tendencies": [
+      {
+        "metric": "观看",
+        "tendency": "none",
+        "value": "--"
+      },
+      {
+        "metric": "观看总时长(秒)",
+        "tendency": "none",
+        "value": "--"
+      },
+      {
+        "metric": "主页访客",
+        "tendency": "down",
+        "value": "100%"
+      },
+      {
+        "metric": "点赞",
+        "tendency": "none",
+        "value": "--"
+      },
+      {
+        "metric": "收藏",
+        "tendency": "none",
+        "value": "--"
+      },
+      {
+        "metric": "评论",
+        "tendency": "none",
+        "value": "--"
+      },
+      {
+        "metric": "弹幕",
+        "tendency": "none",
+        "value": "--"
+      },
+      {
+        "metric": "笔记涨粉",
+        "tendency": "none",
+        "value": "--"
+      },
+      {
+        "metric": "笔记分享",
+        "tendency": "none",
+        "value": "--"
+      }
+    ]
+  },
+  "cachedAt": "2025-11-06T06:46:07.095Z"
+}

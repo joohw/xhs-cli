@@ -1,13 +1,11 @@
-// src/xhs-cli/get_recent_notes.ts
 // 读取最近发布的笔记列表
 
 
 import type { Page } from 'puppeteer';
 import { withLoggedInPage } from '../browser/browser.js';
-import { checkLoginState } from './check_login_state.js';
 import { Note } from '../types/note.js';
 import { saveToCache, loadFromCache } from '../utils/cache.js';
-import { serializeNote } from '../types/note.js';
+import { checkLoginState } from './check_login_state.js';
 
 
 
@@ -107,7 +105,6 @@ export async function getRecentNotesRemote(page: Page): Promise<Note[]> {
 async function getInteractionCount(page: Page, card: any, type: string): Promise<string> {
   const iconList = await card.$('.icon_list');
   if (!iconList) return '0';
-
   const icons = await iconList.$$('.icon');
   for (const icon of icons) {
     const iconText = await page.evaluate((el, targetType) => {
@@ -116,7 +113,6 @@ async function getInteractionCount(page: Page, card: any, type: string): Promise
       const d = path?.getAttribute('d') || '';
       const span = el.querySelector('span');
       const count = span ? (span.textContent || '').trim() : '';
-
       if (targetType === 'views' && (d.includes('M21.83 11.442') || d.includes('M15 12'))) {
         return count;
       }
@@ -134,7 +130,6 @@ async function getInteractionCount(page: Page, card: any, type: string): Promise
       }
       return null;
     }, icon, type);
-
     if (iconText) {
       return iconText || '0';
     }
@@ -143,58 +138,14 @@ async function getInteractionCount(page: Page, card: any, type: string): Promise
 }
 
 
-// 主函数 - 获取近期笔记列表
-// 核心函数：获取笔记统计（返回原始数据）
-async function getRecentNotesRaw(): Promise<Note[]> {
+
+// 获取近期笔记列表 - 返回 Note[]
+export async function getRecentNotes(): Promise<Note[]> {
+  const { isLoggedIn } = await checkLoginState();
+  if (!isLoggedIn) {
+    throw new Error('未登录状态。请先确保已登录小红书。');
+  }
   return await withLoggedInPage(async (page) => {
     return await getRecentNotesRemote(page);
   });
-}
-
-
-
-
-// 获取近期笔记列表 - 兼容 CLI 和 MCP 调用
-export async function getRecentNotes(): Promise<Note[]> {
-  try {
-    const isLoggedIn = await checkLoginState();
-    if (!isLoggedIn) {
-      console.error('❌ 未登录，请先运行: npm run xhs login');
-      process.exit(1);
-    }
-  } catch (error) {
-    console.error('❌ 登录失败或超时:', error instanceof Error ? error.message : error);
-    process.exit(1);
-  }
-  try {
-    console.error('📥 获取近期笔记列表...\n');
-    const data = await getRecentNotesRaw();
-    if (data.length === 0) {
-      console.error('❌ 未找到笔记数据');
-      return data; // 返回空数组，而不是 void
-    }
-    console.error(`\n📝 近期笔记列表 (共 ${data.length} 篇)\n`);
-    console.error('='.repeat(60));
-    data.forEach((note: Note, index: number) => {
-      console.error(`\n📄 笔记 ${index + 1}/${data.length}`);
-      console.error('-'.repeat(40));
-      console.error(serializeNote(note));
-    });
-    console.error('\n💾 笔记数据已保存到缓存（notes/ 文件夹）\n');
-    return data; // 返回数据供 MCP 使用
-  } catch (error) {
-    console.error('❌ 获取笔记列表失败:', error);
-    if (error instanceof Error) {
-      console.error('错误信息:', error.message);
-    }
-    process.exit(1);
-  }
-}
-
-
-
-
-// 如果直接运行此文件
-if (import.meta.url === `file://${process.argv[1]}`) {
-  getRecentNotes().catch(console.error);
 }

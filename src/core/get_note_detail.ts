@@ -170,7 +170,6 @@ export async function getNoteDetail(noteId: string): Promise<Note | null> {
   const partialDetail = await withLoggedInPage(async (page) => {
     return await getNoteDetailById(page, noteId);
   });
-
   if (!partialDetail) {
     return null;
   }

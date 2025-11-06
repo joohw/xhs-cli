@@ -10,18 +10,19 @@ import {
   ListResourcesRequestSchema,
   ReadResourceRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
-import { getTools } from './mcp/tools.js';
+import { getTools } from './tools.js';
 import {
   handleCheckLogin,
   handleGetOverallData,
+  handleGetRecentNotes,
   handleGetNoteDetailById,
   handleUpdateDetailedStatistics,
   handleReadPostingGuidelines,
   handleLoginStatus,
   handleLogin,
-} from './mcp/handlers.js';
-import { loadFromCache } from './utils/cache.js';
-import { Note } from './types/note.js';
+} from './handlers.js';
+import { loadFromCache } from '../utils/cache.js';
+import { Note } from '../types/note.js';
 
 
 
@@ -58,6 +59,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case 'xhs_get_overall_data':
         return await handleGetOverallData();
+
+      case 'xhs_get_recent_notes':
+        return await handleGetRecentNotes((args as any)?.limit);
 
       case 'xhs_get_note_detail_by_id':
         return await handleGetNoteDetailById((args as any)?.noteId);

@@ -163,7 +163,7 @@ export class XHSOperationDataFetcher {
 
 // 核心函数：获取运营数据（返回原始数据）
 export async function getOperationData(): Promise<UserRecentOperationData> {
-  const isLoggedIn = await checkLoginState();
+  const { isLoggedIn } = await checkLoginState();
   if (!isLoggedIn) {
     throw new Error('未登录状态。请先确保已登录小红书。');
   }

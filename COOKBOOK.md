@@ -2,14 +2,41 @@
 
 本项目已实现完整的 MCP (Model Context Protocol) 服务器，可以通过 Claude Desktop、Cursor 或其他支持 MCP 的客户端使用。
 
-> 💡 **Cursor 用户**: 请查看 [CURSOR_MCP.md](./CURSOR_MCP.md) 获取 Cursor 专用配置指南
+## 🚀 一键部署（推荐）
+
+最简单的方式是使用自动配置脚本，**无需手动配置路径**：
+
+```bash
+# 1. 安装依赖（如果还没安装）
+npm install
+
+# 2. 一键部署到所有支持的客户端（Claude Desktop 和 Cursor）
+npm run setup
+
+# 或者只部署到特定客户端
+npm run setup:claude    # 仅 Claude Desktop
+npm run setup:cursor    # 仅 Cursor
+npm run setup:all       # 所有客户端（等同于 npm run setup）
+```
+
+脚本会自动：
+- ✅ 检测并构建项目（如果未构建）
+- ✅ 自动检测项目路径（无需手动输入）
+- ✅ 配置 Claude Desktop 和/或 Cursor
+- ✅ 创建必要的配置文件和目录
+
+部署完成后，重启对应的客户端即可使用！
 
 ## 前置要求
 
-1. 确保已构建项目：`npm run build`
-2. 确保已登录小红书：`npm run xhs login`
+1. 确保已安装依赖：`npm install`
+2. 确保已登录小红书：`npm run xhs login`（部署后也可以在 MCP 客户端中登录）
 
-## 在 Claude Desktop 中配置
+## 手动配置（可选）
+
+如果自动配置脚本无法正常工作，可以手动配置：
+
+### 在 Claude Desktop 中配置
 
 ### 1. 找到配置文件位置
 
@@ -50,15 +77,18 @@
   }
 }
 ```
-
 **注意**：
 - 路径必须是**绝对路径**
 - Windows 路径可以使用双反斜杠 `\\` 或正斜杠 `/`
 - 确保路径指向构建后的 `dist/index.js` 文件
 
+
+
 ### 3. 重启 Claude Desktop
 
 配置完成后，重启 Claude Desktop 使配置生效。
+
+
 
 ## 可用工具
 
@@ -72,39 +102,4 @@
 - `xhs_read_posting_guidelines` - 读取发帖指导原则
 - `xhs_login_status` - 获取登录状态信息
 - `xhs_login` - 执行登录
-
-## 测试 MCP 服务器
-
-直接运行服务器测试：
-
-```bash
-npm start
-```
-
-服务器会通过 stdio 与客户端通信，不应该直接输出内容（除了错误信息）。
-
-## 故障排查
-
-1. **服务器无法启动**
-   - 确保已运行 `npm run build`
-   - 检查路径是否正确
-   - 查看 Claude Desktop 的错误日志
-
-2. **工具调用失败**
-   - 确保已登录：`npm run xhs check-login`
-   - 如果未登录，使用 `xhs_login` 工具登录
-
-3. **路径问题**
-   - Windows 用户注意使用正确的路径格式
-   - 可以使用 `path.resolve()` 或相对路径（如果配置正确）
-
-## 开发模式
-
-开发时可以使用：
-
-```bash
-npm run dev
-```
-
-这会启动监听模式，代码变更后自动重启。
 

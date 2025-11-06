@@ -5,7 +5,7 @@ import { join } from 'path';
 
 
 // 缓存目录配置
-export const CACHE_DIR = join(process.cwd(), '.cache');
+export const CACHE_DIR = join(process.cwd(), 'XHS');
 // 笔记缓存目录
 export const NOTES_CACHE_DIR = join(CACHE_DIR, 'notes');
 // 浏览器cookie文件

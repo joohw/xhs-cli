@@ -2,6 +2,13 @@
 
 面向个人创作者的小红书 MCP 服务器和 CLI 工具 - 帮助创作者管理、分析和发布小红书内容
 
+
+## Why XHS-CLI
+
+众所周知，运营自媒体是一件非常耗精力的事，此项目面向缺乏运营精力的个人创作者，提供一套运营小红书的解决方案。
+
+
+
 ## 核心功能
 
 - 📊 管理您所有已发布的笔记列表，作为上下文随时待命
@@ -13,10 +20,10 @@
 
 ```bash
 # 全局安装
-npm install -g xhs-mcp
+npm install -g xhs-cli
 
 # 或者使用 npx（无需安装）
-npx xhs-mcp <command>
+npx xhs-cli <command>
 ```
 
 ## 前置要求
@@ -95,14 +102,18 @@ xhs
 
 运行不带参数会显示所有可用命令的详细说明。
 
+
+
 ## MCP 服务器
 
 这个包同时也是一个 MCP（Model Context Protocol）服务器，可以与支持 MCP 的客户端（如 Cursor、Claude Desktop 等）集成。
 
+
+
 ### 配置 MCP 客户端
 
 详细的 MCP 配置说明请访问项目主页：
-https://github.com/your-username/xhs-mcp
+https://github.com/joohw/xhs-cli
 
 ## 功能特性
 
@@ -118,6 +129,6 @@ MIT
 
 ## 相关链接
 
-- GitHub: https://github.com/your-username/xhs-mcp
-- 问题反馈: https://github.com/your-username/xhs-mcp/issues
+- GitHub: https://github.com/joohw/xhs-cli
+- 问题反馈: https://github.com/joohw/xhs-cli/issues
 

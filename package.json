@@ -5,18 +5,15 @@
   "type": "module",
   "main": "dist/index.js",
   "bin": {
-    "xhs-login": "./dist/cli/login.js"
+    "xhs": "./dist/cli.js"
   },
   "scripts": {
     "build": "tsc",
     "dev": "tsx watch --clear-screen=false src/index.ts",
+    "xhs": "tsx src/cli.ts",
     "start": "node dist/index.js",
-    "xhs": "tsx src/cli/cli.ts",
-    "xhs-cli": "tsx src/cli/cli.ts",
-    "test": "tsx src/cli/_test.ts",
-    "test:mcp": "tsx src/mcp/test.ts",
-    "login": "npm run cli login",
-    "check-login": "npm run cli check-login"
+    "test": "tsx src/test/_test.ts",
+    "test:mcp": "tsx src/mcp/test.ts"
   },
   "keywords": [
     "mcp",

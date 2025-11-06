@@ -1,25 +1,25 @@
-// src/cli/get_note_statistics.ts
+// src/xhs-cli/get_recent_notes.ts
+// 读取最近发布的笔记列表
+
 
 import type { Page } from 'puppeteer';
 import { withLoggedInPage } from '../browser/browser.js';
 import { checkLoginState } from './check_login_state.js';
-import { NoteDetail } from '../types/note.js';
+import { Note } from '../types/note.js';
 import { saveToCache, loadFromCache } from '../utils/cache.js';
-import { serializeNoteDetail } from '../types/note.js';
+import { serializeNote } from '../types/note.js';
 
 
 
 // 获取近期笔记列表（从笔记管理页面）
-export async function getRecentNotes(page: Page): Promise<NoteDetail[]> {
+export async function getRecentNotesRemote(page: Page): Promise<Note[]> {
   await page.goto('https://creator.xiaohongshu.com/new/note-manager', {
     waitUntil: 'domcontentloaded',
     timeout: 30000,
   });
   await new Promise(resolve => setTimeout(resolve, 3000));
-  
   const noteCards = await page.$$('div.note');
-  const data: NoteDetail[] = [];
-  
+  const data: Note[] = [];
   for (const card of noteCards) {
     // 提取笔记ID
     const impressionData = await page.evaluate(el => {
@@ -31,24 +31,20 @@ export async function getRecentNotes(page: Page): Promise<NoteDetail[]> {
         return null;
       }
     }, card);
-    
     let noteId = '';
     if (impressionData?.noteTarget?.value?.noteId) {
       noteId = impressionData.noteTarget.value.noteId;
     }
-
     // 如果没有笔记ID，跳过
     if (!noteId) {
       continue;
     }
-
     // 检查是否已有缓存
     const cacheFilename = `notes/${noteId}.json`;
-    const cachedNote = loadFromCache<NoteDetail>(cacheFilename);
-    
+    const cachedNote = loadFromCache<Note>(cacheFilename);
     if (cachedNote) {
       // 使用缓存数据，只更新列表页面能获取到的字段
-      const updatedNote: NoteDetail = {
+      const updatedNote: Note = {
         ...cachedNote,
         // 更新列表页面能获取到的字段
         views: await getInteractionCount(page, card, 'views') || cachedNote.views,
@@ -64,11 +60,9 @@ export async function getRecentNotes(page: Page): Promise<NoteDetail[]> {
       // 提取标题
       const titleEl = await card.$('.info .title');
       const title = titleEl ? await page.evaluate(el => (el.textContent || '').trim(), titleEl) : '';
-
       // 提取发布时间
       const timeEl = await card.$('.info .time');
       const publishTime = timeEl ? await page.evaluate(el => (el.textContent || '').trim(), timeEl) : '';
-
       // 提取封面图片
       const coverEl = await card.$('.img img');
       let coverImage = '';
@@ -84,12 +78,10 @@ export async function getRecentNotes(page: Page): Promise<NoteDetail[]> {
           }
         }
       }
-
       // 构建公开链接
       const publicUrl = `https://www.xiaohongshu.com/explore/${noteId}`;
-
       // 创建新的 NoteDetail 对象
-      const noteDetail: NoteDetail = {
+      const noteDetail: Note = {
         noteId: noteId,
         title: title || '未知标题',
         url: publicUrl,
@@ -99,34 +91,23 @@ export async function getRecentNotes(page: Page): Promise<NoteDetail[]> {
         comments: await getInteractionCount(page, card, 'comments') || '0',
         favorites: await getInteractionCount(page, card, 'favorites') || '0',
         shares: await getInteractionCount(page, card, 'shares') || '0',
-        content: '', // 在列表页面无法获取完整内容
-        author: '', // 在列表页面无法获取作者
         coverImage: coverImage || '',
-        images: [], // 在列表页面无法获取所有图片
-        location: '', // 在列表页面无法获取位置
-        tags: [], // 在列表页面无法获取标签
-        exposure: '', // 需要详细统计页面
-        coverClickRate: '', // 需要详细统计页面
-        fansIncrease: '', // 需要详细统计页面
-        avgViewTime: '', // 需要详细统计页面
-        danmaku: '', // 需要详细统计页面
         detailUrl: publicUrl,
       };
-
       data.push(noteDetail);
-      // 保存到缓存（无限期）
       saveToCache(cacheFilename, noteDetail);
     }
   }
-  
   return data;
 }
+
+
 
 // 辅助函数：获取互动数据
 async function getInteractionCount(page: Page, card: any, type: string): Promise<string> {
   const iconList = await card.$('.icon_list');
   if (!iconList) return '0';
-  
+
   const icons = await iconList.$$('.icon');
   for (const icon of icons) {
     const iconText = await page.evaluate((el, targetType) => {
@@ -135,7 +116,7 @@ async function getInteractionCount(page: Page, card: any, type: string): Promise
       const d = path?.getAttribute('d') || '';
       const span = el.querySelector('span');
       const count = span ? (span.textContent || '').trim() : '';
-      
+
       if (targetType === 'views' && (d.includes('M21.83 11.442') || d.includes('M15 12'))) {
         return count;
       }
@@ -153,7 +134,7 @@ async function getInteractionCount(page: Page, card: any, type: string): Promise
       }
       return null;
     }, icon, type);
-    
+
     if (iconText) {
       return iconText || '0';
     }
@@ -161,46 +142,21 @@ async function getInteractionCount(page: Page, card: any, type: string): Promise
   return '0';
 }
 
+
 // 主函数 - 获取近期笔记列表
 // 核心函数：获取笔记统计（返回原始数据）
-async function getNoteStatisticsRaw(): Promise<NoteDetail[]> {
+async function getRecentNotesRaw(): Promise<Note[]> {
   return await withLoggedInPage(async (page) => {
-    return await getRecentNotes(page);
+    return await getRecentNotesRemote(page);
   });
 }
 
-// MCP兼容函数：获取笔记统计（返回MCP格式）
-export async function getNoteStatistics(limit?: number): Promise<import('../mcp/format.js').MCPResponse> {
-  const { formatForMCP, formatErrorForMCP } = await import('../mcp/format.js');
-  try {
-    const data = await getNoteStatisticsRaw();
-    const limitedData = limit ? data.slice(0, limit) : data;
-    
-    return {
-      content: [
-        {
-          type: 'text',
-          text: JSON.stringify({
-            total: data.length,
-            limit: limit || data.length,
-            notes: limitedData,
-          }, null, 2),
-        },
-        {
-          type: 'text',
-          text: limitedData.map(note => serializeNoteDetail(note)).join('\n\n'),
-        },
-      ],
-    };
-  } catch (error) {
-    return formatErrorForMCP(error);
-  }
-}
 
-// CLI 命令函数
-export async function getNoteStatisticsCommand(): Promise<void> {
+
+
+// 获取近期笔记列表 - 兼容 CLI 和 MCP 调用
+export async function getRecentNotes(): Promise<Note[]> {
   try {
-    console.log('🔍 检查登录状态...\n');
     const isLoggedIn = await checkLoginState();
     if (!isLoggedIn) {
       console.error('❌ 未登录，请先运行: npm run xhs login');
@@ -210,35 +166,22 @@ export async function getNoteStatisticsCommand(): Promise<void> {
     console.error('❌ 登录失败或超时:', error instanceof Error ? error.message : error);
     process.exit(1);
   }
-
   try {
-    console.log('📥 获取近期笔记列表...\n');
-    const { extractTextFromMCP } = await import('../mcp/format.js');
-    const mcpResponse = await getNoteStatistics();
-    
-    if (mcpResponse.isError) {
-      console.error(extractTextFromMCP(mcpResponse));
-      process.exit(1);
-    }
-    
-    const responseData = JSON.parse(mcpResponse.content[0].text);
-    const data = responseData.notes as NoteDetail[];
-
+    console.error('📥 获取近期笔记列表...\n');
+    const data = await getRecentNotesRaw();
     if (data.length === 0) {
-      console.log('❌ 未找到笔记数据');
-      return;
+      console.error('❌ 未找到笔记数据');
+      return data; // 返回空数组，而不是 void
     }
-
-    console.log(`\n📝 近期笔记列表 (共 ${data.length} 篇)\n`);
-    console.log('='.repeat(60));
-    
-    data.forEach((note: NoteDetail, index: number) => {
-      console.log(`\n📄 笔记 ${index + 1}/${data.length}`);
-      console.log('-'.repeat(40));
-      console.log(serializeNoteDetail(note));
+    console.error(`\n📝 近期笔记列表 (共 ${data.length} 篇)\n`);
+    console.error('='.repeat(60));
+    data.forEach((note: Note, index: number) => {
+      console.error(`\n📄 笔记 ${index + 1}/${data.length}`);
+      console.error('-'.repeat(40));
+      console.error(serializeNote(note));
     });
-
-    console.log('\n💾 笔记数据已保存到缓存（notes/ 文件夹）\n');
+    console.error('\n💾 笔记数据已保存到缓存（notes/ 文件夹）\n');
+    return data; // 返回数据供 MCP 使用
   } catch (error) {
     console.error('❌ 获取笔记列表失败:', error);
     if (error instanceof Error) {
@@ -249,7 +192,9 @@ export async function getNoteStatisticsCommand(): Promise<void> {
 }
 
 
+
+
 // 如果直接运行此文件
 if (import.meta.url === `file://${process.argv[1]}`) {
-  getNoteStatisticsCommand().catch(console.error);
+  getRecentNotes().catch(console.error);
 }

@@ -1,7 +1,8 @@
 // 检查登录状态
+
+import { Browser } from 'puppeteer';
 import { isLoggedIn, getCookieTTL } from '../auth/cookie.js';
 import { launchBrowser } from '../browser/browser.js';
-import { Browser } from 'puppeteer';
 import { login } from './login.js';
 
 
@@ -44,15 +45,15 @@ async function checkLoginState(forceFullCheck: boolean = false): Promise<boolean
   if (forceFullCheck) {
     const isLoggedIn = await checkLoginStateFull();
     if (!isLoggedIn) {
-      console.log('检查失败，尝试登录...\n');
+      console.error('检查失败，尝试登录...\n');
       const loginSuccess = await login();
       if (!loginSuccess) {
         throw new Error('登录失败或超时');
       }
-      console.log('✅ 登录成功\n');
+      console.error('✅ 登录成功\n');
       return true;
     }
-    console.log('✅ 已登录\n');
+    console.error('✅ 已登录\n');
     return isLoggedIn;
   }
   const { isLoggedIn: loggedIn, ttl } = checkLoginStateFast();
@@ -60,32 +61,32 @@ async function checkLoginState(forceFullCheck: boolean = false): Promise<boolean
     const hours = Math.floor(ttl / 3600);
     const minutes = Math.floor((ttl % 3600) / 60);
     if (hours > 0) {
-      console.log(`✅ 已登录（剩余有效时间: ${hours}小时${minutes}分钟）\n`);
+      console.error(`✅ 已登录（剩余有效时间: ${hours}小时${minutes}分钟）\n`);
     } else {
-      console.log(`✅ 已登录（剩余有效时间: ${minutes}分钟）\n`);
+      console.error(`✅ 已登录（剩余有效时间: ${minutes}分钟）\n`);
     }
     return true;
   }
   if (loggedIn && ttl === null) {
     const isLoggedIn = await checkLoginStateFull();
     if (!isLoggedIn) {
-      console.log('检查失败，尝试登录...\n');
+      console.error('检查失败，尝试登录...\n');
       const loginSuccess = await login();
       if (!loginSuccess) {
         throw new Error('登录失败或超时');
       }
-      console.log('✅ 登录成功\n');
+      console.error('✅ 登录成功\n');
       return true;
     }
-    console.log('✅ 已登录\n');
+    console.error('✅ 已登录\n');
     return isLoggedIn;
   }
-  console.log('未登录，尝试登录...\n');
+  console.error('未登录，尝试登录...\n');
   const loginSuccess = await login();
   if (!loginSuccess) {
     throw new Error('登录失败或超时');
   }
-  console.log('✅ 登录成功\n');
+  console.error('✅ 登录成功\n');
   return true;
 }
 
@@ -98,36 +99,36 @@ async function main() {
       const hours = Math.floor(ttl / 3600);
       const minutes = Math.floor((ttl % 3600) / 60);
       if (hours > 0) {
-        console.log(`✅ 已登录（剩余有效时间: ${hours}小时${minutes}分钟）`);
+        console.error(`✅ 已登录（剩余有效时间: ${hours}小时${minutes}分钟）`);
       } else {
-        console.log(`✅ 已登录（剩余有效时间: ${minutes}分钟）`);
+        console.error(`✅ 已登录（剩余有效时间: ${minutes}分钟）`);
       }
       process.exit(0);
     }
     if (loggedIn && ttl === null) {
-      console.log('⚠️  Cookie 存在但无法确定过期时间，进行完整验证...');
+      console.error('⚠️  Cookie 存在但无法确定过期时间，进行完整验证...');
       const isLoggedIn = await checkLoginStateFull();
       if (isLoggedIn) {
-        console.log('✅ 已登录');
+        console.error('✅ 已登录');
         process.exit(0);
       } else {
-        console.log('检查失败，尝试登录...\n');
+        console.error('检查失败，尝试登录...\n');
         const loginSuccess = await login();
         if (!loginSuccess) {
-          console.log('❌ 登录失败或超时');
+          console.error('❌ 登录失败或超时');
           process.exit(1);
         }
-        console.log('✅ 登录成功');
+        console.error('✅ 登录成功');
         process.exit(0);
       }
     } else {
-      console.log('未登录，尝试登录...\n');
+      console.error('未登录，尝试登录...\n');
       const loginSuccess = await login();
       if (!loginSuccess) {
-        console.log('❌ 登录失败或超时');
+        console.error('❌ 登录失败或超时');
         process.exit(1);
       }
-      console.log('✅ 登录成功');
+      console.error('✅ 登录成功');
       process.exit(0);
     }
   } catch (error) {

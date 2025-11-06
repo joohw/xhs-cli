@@ -37,7 +37,7 @@ export function saveToCache<T>(filename: string, data: T): void {
 }
 
 
-// 从缓存文件读取数据（支持过期检查）
+// 从缓存文件读取数据（支持过期检查）,参数为秒
 export function loadFromCache<T>(filename: string, maxAge?: number): T | null {
   const filePath = join(CACHE_DIR, filename);
   if (!existsSync(filePath)) {
@@ -51,7 +51,7 @@ export function loadFromCache<T>(filename: string, maxAge?: number): T | null {
       if (maxAge !== undefined) {
         const cachedTime = new Date(cached.cachedAt).getTime();
         const now = Date.now();
-        if (now - cachedTime > maxAge) {
+        if (now - cachedTime > maxAge * 1000) {
           return null;
         }
       }
@@ -59,13 +59,14 @@ export function loadFromCache<T>(filename: string, maxAge?: number): T | null {
     }
     return parsed as T;
   } catch (error) {
-    console.warn(`⚠️ 读取缓存文件失败: ${filename}`, error);
+    console.error(`⚠️ 读取缓存文件失败: ${filename}`, error);
     return null;
   }
 }
 
+
 // 检查缓存是否有效（基于时间）
-export function isCacheValid(filename: string, maxAge: number = 3600000): boolean {
+export function isCacheValid(filename: string, maxAge: number = 3600): boolean {
   const filePath = join(CACHE_DIR, filename);
   if (!existsSync(filePath)) {
     return false;
@@ -103,7 +104,7 @@ export function removeCache(filename: string): boolean {
     require('fs').unlinkSync(filePath);
     return true;
   } catch (error) {
-    console.warn(`⚠️ 删除缓存文件失败: ${filename}`, error);
+    console.error(`⚠️ 删除缓存文件失败: ${filename}`, error);
     return false;
   }
 }
@@ -113,7 +114,7 @@ export function clearCache(): void {
   if (existsSync(CACHE_DIR)) {
     try {
       require('fs').rmSync(CACHE_DIR, { recursive: true, force: true });
-      console.log('✅ 缓存已清空');
+      console.error('✅ 缓存已清空');
     } catch (error) {
       console.error('❌ 清空缓存失败:', error);
     }
@@ -128,7 +129,7 @@ export function listCacheFiles(): string[] {
   try {
     return require('fs').readdirSync(CACHE_DIR);
   } catch (error) {
-    console.warn('⚠️ 获取缓存文件列表失败:', error);
+    console.error('⚠️ 获取缓存文件列表失败:', error);
     return [];
   }
 }

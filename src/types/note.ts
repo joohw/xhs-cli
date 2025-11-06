@@ -2,16 +2,14 @@
 
 
 
-export interface NoteDetail {
+export interface Note {
   // 基础信息
   noteId: string;
-  title: string;
   url: string;
-  content?: string;
+  title: string;
   author?: string;
   publishTime: string;
   coverImage?: string;
-  images?: string[];
   location?: string;
   tags?: string[];
   views: string;
@@ -25,6 +23,10 @@ export interface NoteDetail {
   avgViewTime?: string;
   danmaku?: string;
   detailUrl?: string;
+  detail?: {
+    content?: string;
+    images?: string[];
+  }
 }
 
 
@@ -32,49 +34,69 @@ export interface NoteDetail {
 
 
 
-export function serializeNoteDetail(noteDetail: NoteDetail): string {
+export function serializeNote(note: Note): string {
   const parts: string[] = [];
-  if (noteDetail.title) {
-    parts.push(`标题: ${noteDetail.title}`);
+  if (note.title) {
+    parts.push(`标题: ${note.title}`);
   }
-  if (noteDetail.content) {
-    parts.push(`内容: ${noteDetail.content}`);
+  if (note.publishTime) {
+    parts.push(`发布时间: ${note.publishTime}`);
   }
-  if (noteDetail.publishTime) {
-    parts.push(`发布时间: ${noteDetail.publishTime}`);
-  }
-  if (noteDetail.author) {
-    parts.push(`作者: ${noteDetail.author}`);
-  }
-  if (noteDetail.location) {
-    parts.push(`位置: ${noteDetail.location}`);
-  }
-  if (noteDetail.tags && noteDetail.tags.length > 0) {
-    parts.push(`标签: ${noteDetail.tags.map(tag => `#${tag}`).join(' ')}`);
-  }
+  // 添加互动数据输出
   const stats: string[] = [];
-  if (noteDetail.views && noteDetail.views !== '0') stats.push(`观看 ${noteDetail.views}`);
-  if (noteDetail.likes && noteDetail.likes !== '0') stats.push(`点赞 ${noteDetail.likes}`);
-  if (noteDetail.comments && noteDetail.comments !== '0') stats.push(`评论 ${noteDetail.comments}`);
-  if (noteDetail.favorites && noteDetail.favorites !== '0') stats.push(`收藏 ${noteDetail.favorites}`);
-  if (noteDetail.shares && noteDetail.shares !== '0') stats.push(`分享 ${noteDetail.shares}`);
+  if (note.views && note.views !== '0') stats.push(`观看 ${note.views}`);
+  if (note.likes && note.likes !== '0') stats.push(`点赞 ${note.likes}`);
+  if (note.comments && note.comments !== '0') stats.push(`评论 ${note.comments}`);
+  if (note.favorites && note.favorites !== '0') stats.push(`收藏 ${note.favorites}`);
+  if (note.shares && note.shares !== '0') stats.push(`分享 ${note.shares}`);
   if (stats.length > 0) {
     parts.push(`互动: ${stats.join(', ')}`);
   }
+  if (note.tags && note.tags.length > 0) {
+    parts.push(`标签: ${note.tags.map(tag => `#${tag}`).join(' ')}`);
+  }
   const advancedStats: string[] = [];
-  if (noteDetail.exposure) advancedStats.push(`曝光 ${noteDetail.exposure}`);
-  if (noteDetail.coverClickRate) advancedStats.push(`封面点击率 ${noteDetail.coverClickRate}`);
-  if (noteDetail.fansIncrease) advancedStats.push(`涨粉 ${noteDetail.fansIncrease}`);
-  if (noteDetail.avgViewTime) advancedStats.push(`人均观看时长 ${noteDetail.avgViewTime}`);
-  if (noteDetail.danmaku) advancedStats.push(`弹幕 ${noteDetail.danmaku}`);
+  if (note.exposure) advancedStats.push(`曝光 ${note.exposure}`);
+  if (note.coverClickRate) advancedStats.push(`封面点击率 ${note.coverClickRate}`);
+  if (note.fansIncrease) advancedStats.push(`涨粉 ${note.fansIncrease}`);
+  if (note.avgViewTime) advancedStats.push(`人均观看时长 ${note.avgViewTime}`);
+  if (note.danmaku) advancedStats.push(`弹幕 ${note.danmaku}`);
   if (advancedStats.length > 0) {
     parts.push(`数据: ${advancedStats.join(', ')}`);
   }
-  if (noteDetail.images && noteDetail.images.length > 0) {
-    parts.push(`图片: ${noteDetail.images.length}张`);
+  if (note.detail && note.detail.images && note.detail.images.length > 0) {
+    parts.push(`图片: ${note.detail.images.length}张`);
   }
-  if (noteDetail.url) {
-    parts.push(`链接: ${noteDetail.url}`);
+  if (note.url) {
+    parts.push(`链接: ${note.url}`);
   }
   return parts.join('\n');
 }
+
+
+
+
+export function serializeNoteDetail(note: Note): string {
+  const parts: string[] = [];
+  // 标题（参考标题风格）
+  if (note.title) {
+    parts.push(`标题: ${note.title}`);
+  }
+  // 内容（核心参考）
+  if (note.detail && note.detail.content) {
+    parts.push(`内容: ${note.detail.content}`);
+  }
+  // 标签（参考标签选择）
+  if (note.tags && note.tags.length > 0) {
+    parts.push(`标签: ${note.tags.map(tag => `#${tag}`).join(' ')}`);
+  }
+  // 图片链接（参考图片风格和内容，每个都输出为链接）
+  if (note.detail && note.detail.images && note.detail.images.length > 0) {
+    note.detail.images.forEach((imageUrl, index) => {
+      parts.push(`  图片 ${index + 1}: ${imageUrl}`);
+    });
+  }
+  return parts.join('\n');
+}
+
+

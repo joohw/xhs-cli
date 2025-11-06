@@ -2,20 +2,13 @@
 // MCP 服务器测试脚本
 // 用于测试 MCP 工具是否正常工作
 
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-} from '@modelcontextprotocol/sdk/types.js';
+
 import { getTools } from './tools.js';
 import {
   handleCheckLogin,
-  handleGetOverallData,
-  handleGetNoteStatistics,
   handleGetNoteDetailById,
-  handleLogin,
 } from './handlers.js';
+
 
 // 测试函数
 async function testMCP() {

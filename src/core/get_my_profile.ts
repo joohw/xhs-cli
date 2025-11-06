@@ -7,7 +7,7 @@ import { saveToCache, loadFromCache } from '../utils/cache.js';
 
 
 // 用户资料获取函数
-async function getUserProfile(page: Page): Promise<UserProfile> {
+export async function getUserProfile(page: Page): Promise<UserProfile> {
     await page.goto('https://creator.xiaohongshu.com/new/home', {
         waitUntil: 'domcontentloaded',
         timeout: 30000,
@@ -72,15 +72,14 @@ async function getUserProfile(page: Page): Promise<UserProfile> {
                 }
             }
         }
-
         return profile;
     });
 }
 
+
 // 序列化用户资料为文本格式
 function serializeUserProfile(profile: UserProfile): string {
     const lines: string[] = [];
-
     lines.push(`👤 用户资料信息`);
     lines.push('='.repeat(40));
     lines.push(`   账户名称: ${profile.accountName}`);
@@ -91,14 +90,14 @@ function serializeUserProfile(profile: UserProfile): string {
     lines.push(`   小红书ID: ${profile.xhsAccountId || '未获取到'}`);
     lines.push(`   个人描述: ${profile.description || '未获取到'}`);
     lines.push('='.repeat(40));
-
     return lines.join('\n');
 }
+
 
 // 主函数
 export async function getMyProfileCommand(): Promise<void> {
     try {
-        console.log('🔍 检查登录状态...\n');
+        console.error('🔍 检查登录状态...\n');
         const isLoggedIn = await checkLoginState();
         if (!isLoggedIn) {
             console.error('❌ 未登录，请先运行: npm run xhs login');
@@ -110,26 +109,22 @@ export async function getMyProfileCommand(): Promise<void> {
         process.exit(1);
         return;
     }
-
     try {
         // 先检查缓存（缓存有效期为1小时）
-        const cachedProfile = loadFromCache<UserProfile>('user_profile.json', 3600000);
+        const cachedProfile = loadFromCache<UserProfile>('user_profile.json', 3600);
         if (cachedProfile) {
-            console.log('📝 使用缓存的用户资料...\n');
-            console.log(serializeUserProfile(cachedProfile));
+            console.error('📝 使用缓存的用户资料...\n');
+            console.error(serializeUserProfile(cachedProfile));
             return;
         }
-
-        console.log('📝 获取最新用户资料...\n');
+        console.error('📝 获取最新用户资料...\n');
         const userProfile = await withLoggedInPage(async (page) => {
             return await getUserProfile(page);
         });
-
         // 保存到缓存
         saveToCache('user_profile.json', userProfile);
-        console.log('💾 用户资料已缓存\n');
-
-        console.log(serializeUserProfile(userProfile));
+        console.error('💾 用户资料已缓存\n');
+        console.error(serializeUserProfile(userProfile));
     } catch (error) {
         console.error('❌ 获取用户资料失败:', error);
         if (error instanceof Error) {
@@ -138,6 +133,8 @@ export async function getMyProfileCommand(): Promise<void> {
         process.exit(1);
     }
 }
+
+
 
 // 如果直接运行此文件
 if (import.meta.url === `file://${process.argv[1]}`) {

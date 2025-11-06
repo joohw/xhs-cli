@@ -1,5 +1,7 @@
 #!/usr/bin/env node
-// MCP 服务器入口 - 只负责服务器启动和路由，不包含业务逻辑
+// MCP 服务器入口
+
+
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
@@ -12,18 +14,18 @@ import { getTools } from './mcp/tools.js';
 import {
   handleCheckLogin,
   handleGetOverallData,
-  handleGetNoteStatistics,
   handleGetNoteDetailById,
-  handleGetAllNotesDetail,
+  handleUpdateDetailedStatistics,
   handleReadPostingGuidelines,
   handleLoginStatus,
   handleLogin,
 } from './mcp/handlers.js';
 import { loadFromCache } from './utils/cache.js';
-import { NoteDetail } from './types/note.js';
+import { Note } from './types/note.js';
 
 
-// 创建 MCP 服务器实例
+
+// 1.创建 MCP 服务器实例
 const server = new Server(
   {
     name: 'xhs-mcp',
@@ -37,8 +39,7 @@ const server = new Server(
   }
 );
 
-
-// 注册工具列表
+// 2.注册工具列表 
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
     tools: getTools(),
@@ -47,7 +48,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 
 
 
-// 处理工具调用
+// 3.处理工具调用
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
   try {
@@ -58,14 +59,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case 'xhs_get_overall_data':
         return await handleGetOverallData();
 
-      case 'xhs_get_note_statistics':
-        return await handleGetNoteStatistics((args as any)?.limit);
-
       case 'xhs_get_note_detail_by_id':
         return await handleGetNoteDetailById((args as any)?.noteId);
 
-      case 'xhs_get_all_notes_detail':
-        return await handleGetAllNotesDetail((args as any)?.refresh || false);
+      case 'xhs_update_detailed_statistics':
+        return await handleUpdateDetailedStatistics();
 
       case 'xhs_read_posting_guidelines':
         return await handleReadPostingGuidelines((args as any)?.generatePlan !== false);
@@ -113,7 +111,7 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
   const { uri } = request.params;
   if (uri.startsWith('xhs://notes/')) {
     const noteId = uri.replace('xhs://notes/', '');
-    const cachedDetail = loadFromCache<NoteDetail>(`notes/${noteId}.json`);
+    const cachedDetail = loadFromCache<Note>(`notes/${noteId}.json`);
     if (cachedDetail) {
       return {
         contents: [

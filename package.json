@@ -17,11 +17,7 @@
     "build": "tsc",
     "postpublish": "git checkout README.md",
     "xhs": "tsx src/cli.ts",
-    "start": "node dist/mcp/index.js",
-    "setup": "tsx src/scripts/setup_mcp.ts",
-    "setup:claude": "tsx src/scripts/setup_mcp.ts --claude",
-    "setup:cursor": "tsx src/scripts/setup_mcp.ts --cursor",
-    "setup:all": "tsx src/scripts/setup_mcp.ts --all",
+    "mcp": "node dist/mcp/index.js",
     "test": "tsx src/test/_test.ts"
   },
   "keywords": [

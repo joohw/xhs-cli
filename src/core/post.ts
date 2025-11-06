@@ -4,8 +4,9 @@
 
 
 import { launchBrowser } from '../browser/browser.js';
-import { existsSync, readFileSync, mkdirSync, renameSync } from 'fs';
+import { existsSync, readFileSync, mkdirSync, renameSync, writeFileSync } from 'fs';
 import { join } from 'path';
+import { homedir } from 'os';
 import { createInterface } from 'readline';
 import { POST_QUEUE_DIR, POST_POSTED_DIR } from '../config.js';
 import { listQueuePost } from './list_available_post.js';
@@ -33,6 +34,58 @@ export interface PostNoteResult {
     message: string;
 }
 
+
+
+// 将标题转换为有效的文件名
+function titleToFilename(title: string): string {
+    // 移除或替换文件名中不允许的字符
+    let filename = title
+        .replace(/[<>:"/\\|?*]/g, '-')  // 替换 Windows 不允许的字符
+        .replace(/\s+/g, '-')           // 将空格替换为连字符
+        .replace(/[^\w\u4e00-\u9fa5-]/g, '')  // 只保留字母、数字、中文和连字符
+        .replace(/-+/g, '-')            // 将多个连字符合并为一个
+        .replace(/^-|-$/g, '');         // 移除开头和结尾的连字符
+    // 限制文件名长度（保留 .json 扩展名的空间）
+    if (filename.length > 200) {
+        filename = filename.substring(0, 200);
+    }
+    // 如果文件名为空，使用默认名称
+    if (!filename) {
+        filename = 'untitled';
+    }
+    return `${filename}.json`;
+}
+
+
+// 创建或更新待发布的笔记（使用标题作为唯一键）
+export function createPost(title: string, params: PostNoteParams): string {
+    if (!title || typeof title !== 'string' || title.trim().length === 0) {
+        throw new Error('标题是必需的且不能为空');
+    }
+    if (!params.content || typeof params.content !== 'string') {
+        throw new Error('content 字段是必需的且必须是字符串');
+    }
+    // 确保队列目录存在
+    if (!existsSync(POST_QUEUE_DIR)) {
+        mkdirSync(POST_QUEUE_DIR, { recursive: true });
+    }
+    // 根据标题生成文件名
+    const queueFilename = titleToFilename(title);
+    const queueFilePath = join(POST_QUEUE_DIR, queueFilename);
+    // 构建数据对象（确保包含标题）
+    const data: PostNoteParams = {
+        ...params,
+        title: title,  // 确保标题被包含在数据中
+    };
+    // 写入文件（如果文件已存在则覆盖）
+    try {
+        const fileContent = JSON.stringify(data, null, 2);
+        writeFileSync(queueFilePath, fileContent, 'utf-8');
+        return queueFilename;
+    } catch (error) {
+        throw new Error(`创建或更新笔记失败: ${error instanceof Error ? error.message : String(error)}`);
+    }
+}
 
 
 // 从缓存目录读取发帖队列文件
@@ -89,8 +142,8 @@ async function prepareImagePath(imagePath: string): Promise<string> {
         // 绝对路径，直接使用
         absolutePath = imagePath;
     } else {
-        // 相对路径，先尝试从 post/images 目录查找
-        const postImagesDir = join(process.cwd(), '.cache', 'post', 'images');
+        // 相对路径，先尝试从用户目录的 post/images 目录查找
+        const postImagesDir = join(homedir(), '.xhs-cli', 'post', 'images');
         const postImagePath = join(postImagesDir, imagePath);
         if (existsSync(postImagePath)) {
             absolutePath = postImagePath;
@@ -267,11 +320,10 @@ export async function postNote(params: PostNoteParams, queueFilename?: string): 
 export async function selectPostInteractively(): Promise<string> {
     const posts = listQueuePost();
     if (posts.length === 0) {
-        console.error('📭 队列中没有待发布的帖子');
-        console.error('💡 提示: 使用 npm run xhs add-post 添加新的 post');
+        console.error('📭 暂时没有可以发布的笔记');
         process.exit(1);
     }
-    console.error(`\n📋 请选择要发布的 post (共 ${posts.length} 个):\n`);
+    console.error(`\n📋 请选择要发布的笔记 (共 ${posts.length} 个):\n`);
     posts.forEach((post: { filename: string; title?: string; content: string; createdAt: Date; size: number }, index: number) => {
         console.error(`${index + 1}. ${post.filename}`);
         if (post.title) {

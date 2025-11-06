@@ -14,6 +14,7 @@ import { serializeOperationData } from './types/operationData.js';
 import { serializeUserProfile } from './types/userProfile.js';
 import { serializeNote, serializeNoteDetail } from './types/note.js';
 import { setupMCP } from './scripts/setup_mcp.js';
+import { checkVersionUpdate } from './utils/version_check.js';
 
 
 
@@ -75,11 +76,11 @@ const commands: Record<string, () => Promise<void>> = {
       process.exit(1);
     }
   },
-  'get-note-detail-by-id': async () => {
+  'get-note-detail': async () => {
     const noteId = commandArgs[0];
     if (!noteId) {
       console.error('❌ 请提供笔记ID');
-      console.error('使用方法: npm run xhs get-note-detail-by-id <noteId>');
+      console.error('使用方法: npm run xhs get-note-detail <noteId>');
       process.exit(1);
     }
     try {
@@ -168,23 +169,36 @@ const commands: Record<string, () => Promise<void>> = {
 
 
 
-// 显示帮助信息，Todo: 所有命令都完成之后再写这个
+// 显示帮助信息
 function showHelp() {
+  const commandList = [
+    { cmd: 'login', desc: '登录小红书' },
+    { cmd: 'check-login', desc: '检查登录状态' },
+    { cmd: 'get-my-profile', desc: '获取用户资料' },
+    { cmd: 'get-operation-data', desc: '获取近期笔记运营数据' },
+    { cmd: 'get-recent-notes', desc: '获取近期笔记列表' },
+    { cmd: 'get-note-detail', desc: '根据笔记ID获取笔记详情' },
+    { cmd: 'post', desc: '发布笔记' },
+    { cmd: 'list-available-post', desc: '列出所有待发布的笔记' },
+    { cmd: 'setup-mcp', desc: '配置 MCP 服务器（Claude Desktop / Cursor）' },
+  ];
+  const maxCmdLength = Math.max(...commandList.map(item => item.cmd.length));
   console.error('可用命令:');
-  console.error('  login                    - 登录小红书');
-  console.error('  check-login              - 检查登录状态');
-  console.error('  get-operation-data       - 获取近期笔记运营数据');
-  console.error('  get-note-statistics      - 获取近期笔记（从笔记管理页面）');
-  console.error('  update-detailed-statistics - 更新缓存中的详细统计数据（从数据统计分析页面）');
-  console.error('  get-note-detail-by-id    - 根据笔记ID获取笔记详情');
-  console.error('  get-all-notes-detail     - 批量获取所有笔记的详情');
-  console.error('  read-posting-guidelines  - 读取推文指导原则（重要）');
+  for (const { cmd, desc } of commandList) {
+    const padding = ' '.repeat(maxCmdLength - cmd.length);
+    console.error(`  ${cmd}${padding}  - ${desc}`);
+  }
 }
 
 
 
 // 主函数
 async function main() {
+  // 异步检查版本更新（完全异步，不阻塞主流程）
+  // 只有执行长时间命令时，版本检查才有机会完成并显示
+  checkVersionUpdate().catch(() => {
+    // 静默失败，不影响主流程
+  });
   if (!command || !commands[command]) {
     if (command) {
       console.error(`❌ 未知命令: ${command}\n`);

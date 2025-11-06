@@ -13,12 +13,14 @@ import {
 import { getTools } from './tools.js';
 import {
   handleCheckLogin,
-  handleGetOverallData,
+  handleGetOperationData,
   handleGetRecentNotes,
   handleGetNoteDetailById,
-  handleUpdateDetailedStatistics,
   handleReadPostingGuidelines,
-  handleLoginStatus,
+  handleGetMyProfile,
+  handleListQueuePosts,
+  handleGetQueuePostDetail,
+  handleCreateOrUpdatePost,
   handleLogin,
 } from './handlers.js';
 import { loadFromCache } from '../utils/cache.js';
@@ -54,29 +56,45 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
   try {
     switch (name) {
+      case 'xhs_login':
+        return await handleLogin();
+
       case 'xhs_check_login':
         return await handleCheckLogin();
-
-      case 'xhs_get_overall_data':
-        return await handleGetOverallData();
 
       case 'xhs_get_recent_notes':
         return await handleGetRecentNotes((args as any)?.limit);
 
-      case 'xhs_get_note_detail_by_id':
-        return await handleGetNoteDetailById((args as any)?.noteId);
+      case 'xhs_get_operation_data':
+        return await handleGetOperationData();
 
-      case 'xhs_update_detailed_statistics':
-        return await handleUpdateDetailedStatistics();
+      case 'xhs_get_note_detail':
+        return await handleGetNoteDetailById((args as any)?.noteId);
 
       case 'xhs_read_posting_guidelines':
         return await handleReadPostingGuidelines((args as any)?.generatePlan !== false);
 
-      case 'xhs_login_status':
-        return await handleLoginStatus();
+      case 'xhs_get_my_profile':
+        return await handleGetMyProfile();
 
-      case 'xhs_login':
-        return await handleLogin();
+      case 'xhs_list_queue_posts':
+        return await handleListQueuePosts();
+
+      case 'xhs_get_queue_post_detail':
+        return await handleGetQueuePostDetail((args as any)?.filename);
+
+      case 'xhs_create_or_update_post':
+        return await handleCreateOrUpdatePost(
+          (args as any)?.title,
+          {
+            content: (args as any)?.content,
+            images: (args as any)?.images,
+            tags: (args as any)?.tags,
+            location: (args as any)?.location,
+            draft: (args as any)?.draft,
+            scheduledPublishTime: (args as any)?.scheduledPublishTime,
+          }
+        );
 
       default:
         throw new Error(`未知的工具: ${name}`);
@@ -127,7 +145,7 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
         ],
       };
     }
-    throw new Error(`笔记 ${noteId} 未找到，请先使用 xhs_get_note_detail_by_id 获取笔记详情。`);
+    throw new Error(`笔记 ${noteId} 未找到，请先使用 xhs_get_note_detail 获取笔记详情。`);
   }
   throw new Error(`未知的资源 URI: ${uri}`);
 });

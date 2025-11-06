@@ -8,7 +8,7 @@ import { getOperationData } from '../core/get_operation_data.js';
 import { getNoteDetail } from '../core/get_note_detail.js';
 import { launchBrowser } from '../browser/browser.js';
 import { getRecentNotes } from '../core/get_recent_notes.js';
-import { serializeNote } from '../types/note.js';
+import { serializeNote, serializeNoteDetail } from '../types/note.js';
 import { serializeOperationData } from '../types/operationData.js';
 import { formatForMCP, formatErrorForMCP } from './format.js';
 import { existsSync, statSync } from 'fs';
@@ -73,14 +73,21 @@ export async function handleGetRecentNotes(limit?: number) {
 
 
 
-// 获取笔记详情 - 直接调用CLI函数（已返回MCP格式）
+// 获取笔记详情
 export async function handleGetNoteDetailById(noteId: string) {
   try {
+    if (!noteId) {
+      return formatErrorForMCP(new Error('必须提供 noteId 参数。'));
+    }
     const isLoggedIn = await checkLoginState();
     if (!isLoggedIn) {
       return formatErrorForMCP(new Error('未登录状态。请先确保已登录小红书。'));
     }
-    return await getNoteDetail(noteId);
+    const detail = await getNoteDetail(noteId);
+    if (!detail) {
+      return formatErrorForMCP(new Error(`无法获取笔记 ${noteId} 的详情。`));
+    }
+    return formatForMCP(detail, serializeNoteDetail);
   } catch (error) {
     return formatErrorForMCP(error);
   }

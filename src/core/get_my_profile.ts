@@ -1,6 +1,8 @@
-// src/cli/get_my_profile.ts
+// src/core/get_my_profile.ts
+// 核心功能：获取用户资料
+
+
 import { withLoggedInPage } from '../browser/browser.js';
-import { checkLoginState } from './check_login_state.js';
 import type { Page } from 'puppeteer';
 import { UserProfile } from '../types/userProfile.js';
 import { saveToCache, loadFromCache } from '../utils/cache.js';
@@ -77,66 +79,22 @@ export async function getUserProfile(page: Page): Promise<UserProfile> {
 }
 
 
-// 序列化用户资料为文本格式
-function serializeUserProfile(profile: UserProfile): string {
-    const lines: string[] = [];
-    lines.push(`👤 用户资料信息`);
-    lines.push('='.repeat(40));
-    lines.push(`   账户名称: ${profile.accountName}`);
-    lines.push(`   账户状态: ${profile.accountStatus}`);
-    lines.push(`   关注数量: ${profile.followingCount}`);
-    lines.push(`   粉丝数量: ${profile.fansCount}`);
-    lines.push(`   获赞与收藏: ${profile.likesAndCollects}`);
-    lines.push(`   小红书ID: ${profile.xhsAccountId || '未获取到'}`);
-    lines.push(`   个人描述: ${profile.description || '未获取到'}`);
-    lines.push('='.repeat(40));
-    return lines.join('\n');
-}
 
-
-// 主函数
-export async function getMyProfileCommand(): Promise<void> {
-    try {
-        console.error('🔍 检查登录状态...\n');
-        const isLoggedIn = await checkLoginState();
-        if (!isLoggedIn) {
-            console.error('❌ 未登录，请先运行: npm run xhs login');
-            process.exit(1);
-            return;
-        }
-    } catch (error) {
-        console.error('❌ 登录失败或超时:', error instanceof Error ? error.message : error);
-        process.exit(1);
-        return;
+// 核心函数：获取用户资料（返回原始数据）
+export async function getMyProfile(): Promise<UserProfile> {
+    // 先检查缓存（缓存有效期为1小时）
+    const cachedProfile = loadFromCache<UserProfile>('user_profile.json', 3600);
+    if (cachedProfile) {
+        return cachedProfile;
     }
-    try {
-        // 先检查缓存（缓存有效期为1小时）
-        const cachedProfile = loadFromCache<UserProfile>('user_profile.json', 3600);
-        if (cachedProfile) {
-            console.error('📝 使用缓存的用户资料...\n');
-            console.error(serializeUserProfile(cachedProfile));
-            return;
-        }
-        console.error('📝 获取最新用户资料...\n');
-        const userProfile = await withLoggedInPage(async (page) => {
-            return await getUserProfile(page);
-        });
-        // 保存到缓存
-        saveToCache('user_profile.json', userProfile);
-        console.error('💾 用户资料已缓存\n');
-        console.error(serializeUserProfile(userProfile));
-    } catch (error) {
-        console.error('❌ 获取用户资料失败:', error);
-        if (error instanceof Error) {
-            console.error('错误信息:', error.message);
-        }
-        process.exit(1);
-    }
+    const userProfile = await withLoggedInPage(async (page) => {
+        return await getUserProfile(page);
+    });
+    // 保存到缓存
+    saveToCache('user_profile.json', userProfile);
+    return userProfile;
 }
 
 
 
-// 如果直接运行此文件
-if (import.meta.url === `file://${process.argv[1]}`) {
-    getMyProfileCommand().catch(console.error);
-}
+

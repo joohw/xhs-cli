@@ -1,15 +1,15 @@
-// src/xhs-cli/post.ts
-// 发布小红书笔记
+// src/core/post.ts
+// 核心功能：发布小红书笔记
 
 
 
 import { launchBrowser } from '../browser/browser.js';
-import { checkLoginState } from './check_login_state.js';
-import { existsSync, readFileSync, mkdirSync, renameSync, writeFileSync } from 'fs';
+import { existsSync, readFileSync, mkdirSync, renameSync } from 'fs';
 import { join } from 'path';
 import { createInterface } from 'readline';
 import { POST_QUEUE_DIR, POST_POSTED_DIR } from '../config.js';
 import { listQueuePost } from './list_available_post.js';
+
 
 
 // 发布笔记参数接口
@@ -20,7 +20,9 @@ export interface PostNoteParams {
     tags?: string[]; // 标签数组，如 ["#MCP", "#AI"]
     location?: string; // 位置信息
     draft?: boolean; // 是否保存为草稿，默认为 false（即直接发布）
+    scheduledPublishTime?: string; // 计划发布时间（ISO 8601 格式，如 "2024-01-01T10:00:00Z"）
 }
+
 
 
 // 发布笔记结果接口
@@ -33,10 +35,8 @@ export interface PostNoteResult {
 
 
 
-
-
 // 从缓存目录读取发帖队列文件
-function loadPostFromQueue(filename: string): PostNoteParams {
+export function loadPostFromQueue(filename: string): PostNoteParams {
     const queueFilePath = join(POST_QUEUE_DIR, filename);
     if (!existsSync(queueFilePath)) {
         throw new Error(`发帖队列文件不存在: ${queueFilePath}`);
@@ -58,6 +58,7 @@ function loadPostFromQueue(filename: string): PostNoteParams {
 }
 
 
+
 // 将已发布的文件移动到 posted 目录
 function moveToPosted(filename: string): void {
     try {
@@ -73,43 +74,6 @@ function moveToPosted(filename: string): void {
         console.error('⚠️  移动文件到已发布目录失败:', error instanceof Error ? error.message : error);
     }
 }
-
-
-// 创建新的 post 到待发布队列
-export function addPost(params: PostNoteParams, filename?: string): string {
-    // 验证必需字段
-    if (!params.content || typeof params.content !== 'string') {
-        throw new Error('content 字段是必需的且必须是字符串');
-    }
-    // 确保队列目录存在
-    if (!existsSync(POST_QUEUE_DIR)) {
-        mkdirSync(POST_QUEUE_DIR, { recursive: true });
-    }
-    // 生成文件名
-    let queueFilename: string;
-    if (filename) {
-        queueFilename = filename.endsWith('.json') ? filename : `${filename}.json`;
-    } else {
-        // 如果没有指定文件名，使用时间戳生成
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        queueFilename = `post-${timestamp}.json`;
-    }
-    const queueFilePath = join(POST_QUEUE_DIR, queueFilename);
-    // 检查文件是否已存在
-    if (existsSync(queueFilePath)) {
-        throw new Error(`文件已存在: ${queueFilename}`);
-    }
-    // 写入文件
-    try {
-        const content = JSON.stringify(params, null, 2);
-        writeFileSync(queueFilePath, content, 'utf-8');
-        return queueFilename;
-    } catch (error) {
-        throw new Error(`写入文件失败: ${error instanceof Error ? error.message : String(error)}`);
-    }
-}
-
-
 
 
 
@@ -145,7 +109,7 @@ async function prepareImagePath(imagePath: string): Promise<string> {
 
 
 // 核心函数：发布笔记（返回结果数据）- 使用非无头模式
-export async function postNote(params: PostNoteParams): Promise<PostNoteResult> {
+export async function postNote(params: PostNoteParams, queueFilename?: string): Promise<PostNoteResult> {
     const browser = await launchBrowser(false);
     try {
         const page = await browser.newPage();
@@ -256,6 +220,7 @@ export async function postNote(params: PostNoteParams): Promise<PostNoteResult> 
         // 默认 draft 为 true，如果用户明确设置为 false 才发布
         const shouldPublish = params.draft === false;
 
+        let result: PostNoteResult;
         if (shouldPublish) {
             console.error('🚀 准备发布（需要手动确认）...');
             // TODO: 查找并点击发布按钮
@@ -265,7 +230,7 @@ export async function postNote(params: PostNoteParams): Promise<PostNoteResult> 
             // 等待发布成功
             // 从页面获取笔记ID和URL
             console.error('⚠️  自动发布功能待实现');
-            return {
+            result = {
                 success: false,
                 message: '自动发布功能待实现',
             };
@@ -275,11 +240,16 @@ export async function postNote(params: PostNoteParams): Promise<PostNoteResult> 
             console.error('💡 提示: 请在浏览器中手动保存草稿或发布');
             console.error('💡 浏览器将保持打开，您可以继续编辑或发布');
 
-            return {
+            result = {
                 success: true,
                 message: '表单填写完成，请在浏览器中手动保存草稿或发布',
             };
         }
+        // 如果提供了队列文件名且发布成功，自动移动文件
+        if (queueFilename && result.success) {
+            moveToPosted(queueFilename);
+        }
+        return result;
     } finally {
         // 不关闭浏览器，让用户可以继续操作
         // await browser.close();
@@ -289,49 +259,12 @@ export async function postNote(params: PostNoteParams): Promise<PostNoteResult> 
 
 
 
-// CLI 命令：添加 post 到队列
-export function addPostCommand(args: string[]): void {
-    if (args.length === 0) {
-        console.error('❌ 错误: 必须提供 post 内容');
-        console.error('💡 使用方法: npm run xhs add-post <content> [--title <title>] [--images <images>] [--tags <tags>] [--location <location>] [--draft] [--filename <filename>]');
-        process.exit(1);
-    }
-    const params: PostNoteParams = {
-        content: args[0],
-    };
-    let filename: string | undefined;
-    // 解析参数
-    for (let i = 1; i < args.length; i++) {
-        const arg = args[i];
-        if (arg === '--title' && i + 1 < args.length) {
-            params.title = args[++i];
-        } else if (arg === '--images' && i + 1 < args.length) {
-            params.images = args[++i].split(',').map(img => img.trim());
-        } else if (arg === '--tags' && i + 1 < args.length) {
-            params.tags = args[++i].split(',').map(tag => tag.trim());
-        } else if (arg === '--location' && i + 1 < args.length) {
-            params.location = args[++i];
-        } else if (arg === '--draft') {
-            params.draft = true;
-        } else if (arg === '--filename' && i + 1 < args.length) {
-            filename = args[++i];
-        }
-    }
-    try {
-        const queueFilename = addPost(params, filename);
-        console.error(`✅ Post 已添加到队列: ${queueFilename}`);
-        console.error(`📁 文件路径: ${join(POST_QUEUE_DIR, queueFilename)}`);
-    } catch (error) {
-        console.error('❌ 添加失败:', error instanceof Error ? error.message : error);
-        process.exit(1);
-    }
-}
 
 
 
 
 // 交互式选择待发布的 post
-async function selectPostInteractively(): Promise<string> {
+export async function selectPostInteractively(): Promise<string> {
     const posts = listQueuePost();
     if (posts.length === 0) {
         console.error('📭 队列中没有待发布的帖子');
@@ -368,59 +301,3 @@ async function selectPostInteractively(): Promise<string> {
     });
 }
 
-
-// CLI 命令函数
-export async function postNoteCommand(args: string[]): Promise<void> {
-    // 1. 检查是否提供了文件名参数，如果没有则交互式选择
-    let queueFilename: string;
-    if (args.length === 0 || !args[0]) {
-        try {
-            queueFilename = await selectPostInteractively();
-        } catch (error) {
-            process.exit(1);
-        }
-    } else {
-        const filename = args[0];
-        // 确保文件名以 .json 结尾
-        queueFilename = filename.endsWith('.json') ? filename : `${filename}.json`;
-    }
-    // 2. 检查登录状态
-    try {
-        const isLoggedIn = await checkLoginState();
-        if (!isLoggedIn) {
-            console.error('❌ 未登录，请先运行: npm run xhs login');
-            process.exit(1);
-        }
-    } catch (error) {
-        console.error('❌ 登录检查失败:', error instanceof Error ? error.message : error);
-        process.exit(1);
-    }
-    // 3. 从缓存目录读取发帖队列文件
-    let params: PostNoteParams;
-    try {
-        params = loadPostFromQueue(queueFilename);
-    } catch (error) {
-        console.error('❌ 读取发帖队列文件失败:', error instanceof Error ? error.message : error);
-        process.exit(1);
-    }
-    try {
-        const result = await postNote(params);
-        if (result.success) {
-            console.error(`\n✅ ${result.message}`);
-            if (result.noteUrl) {
-                console.error(`🔗 链接: ${result.noteUrl}`);
-            }
-            // 发布成功后，将文件移动到 posted 目录
-            moveToPosted(queueFilename);
-        } else {
-            console.error(`\n❌ ${result.message}`);
-            // process.exit(1);
-        }
-    } catch (error) {
-        console.error('❌ 发布失败:', error);
-        if (error instanceof Error) {
-            console.error('错误信息:', error.message);
-        }
-        process.exit(1);
-    }
-}

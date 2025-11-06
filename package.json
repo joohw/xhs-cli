@@ -1,14 +1,23 @@
 {
-  "name": "xhs-mcp",
+  "name": "xhs-cli",
   "version": "1.0.0",
-  "description": "小红书 MCP 服务器",
+  "description": "面向个人创作者的小红书 CLI 工具和 MCP 服务器 - 帮助创作者管理、分析和发布小红书内容",
   "type": "module",
   "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "bin": {
     "xhs": "./dist/cli.js"
   },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsc",
+    "prepublishOnly": "npm run build && npm run prepare-npm-readme",
+    "prepare-npm-readme": "cp README.npm.md README.md",
+    "postpublish": "git checkout README.md",
     "dev": "tsx watch --clear-screen=false src/index.ts",
     "xhs": "tsx src/cli.ts",
     "start": "node dist/index.js",
@@ -17,11 +26,29 @@
   },
   "keywords": [
     "mcp",
+    "model-context-protocol",
     "xiaohongshu",
-    "xhs"
+    "xhs",
+    "小红书",
+    "content-creator",
+    "social-media",
+    "automation",
+    "cli",
+    "crawler"
   ],
-  "author": "",
+  "author": "Joo <1546635571@qq.com>",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/joohw/xhs-cli.git"
+  },
+  "bugs": {
+    "url": "https://github.com/joohw/xhs-cli/issues"
+  },
+  "homepage": "https://github.com/joohw/xhs-cli#readme",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.4",
     "jsqr": "^1.4.0",

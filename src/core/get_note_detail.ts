@@ -1,17 +1,16 @@
-// src/cli/get_note_detail.ts
+// src/core/get_note_detail.ts
+// 核心功能：获取笔记详情
 
 
 import { withLoggedInPage } from '../browser/browser.js';
-import { checkLoginState } from './check_login_state.js';
 import type { Page } from 'puppeteer';
 import { Note } from '../types/note.js';
 import { saveToCache, loadFromCache } from '../utils/cache.js';
-import { serializeNoteDetail } from '../types/note.js';
 
 
 
 // 检查缓存笔记是否内容完整
-function isNoteContentComplete(note: Note): boolean {
+export function isNoteContentComplete(note: Note): boolean {
   // 如果内容为空且图片数组为空，说明内容不完整
   if ((!note.detail?.content || note.detail?.content.trim() === '') &&
     (!note.detail?.images || note.detail?.images.length === 0)) {
@@ -162,7 +161,7 @@ export async function getNoteDetailById(page: Page, noteId: string): Promise<Par
 
 
 // 核心函数：获取笔记详情（返回原始数据）
-async function getNoteDetailRaw(noteId: string): Promise<Note | null> {
+export async function getNoteDetail(noteId: string): Promise<Note | null> {
   const cacheFilename = `notes/${noteId}.json`;
   const cachedDetail = loadFromCache<Note>(cacheFilename);
   if (cachedDetail && isNoteContentComplete(cachedDetail)) {
@@ -199,88 +198,4 @@ async function getNoteDetailRaw(noteId: string): Promise<Note | null> {
   }
   saveToCache(cacheFilename, finalDetail);
   return finalDetail;
-}
-
-
-
-// MCP兼容函数：获取笔记详情（返回MCP格式）
-export async function getNoteDetail(noteId: string): Promise<import('../mcp/format.js').MCPResponse> {
-  const { formatForMCP, formatErrorForMCP } = await import('../mcp/format.js');
-  if (!noteId) {
-    return {
-      content: [{ type: 'text', text: '错误: 必须提供 noteId 参数。' }],
-      isError: true,
-    };
-  }
-  try {
-    const detail = await getNoteDetailRaw(noteId);
-    if (!detail) {
-      return {
-        content: [{ type: 'text', text: `错误: 无法获取笔记 ${noteId} 的详情。` }],
-        isError: true,
-      };
-    }
-    return formatForMCP(detail, serializeNoteDetail);
-  } catch (error) {
-    return formatErrorForMCP(error);
-  }
-}
-
-
-// CLI 命令函数
-export async function getNoteDetailByIdCommand(noteId?: string): Promise<void> {
-  if (!noteId) {
-    console.error('❌ 请提供笔记ID');
-    console.error('使用方法: npm run xhs get-note-detail-by-id <noteId>');
-    process.exit(1);
-  }
-  try {
-    console.error('🔍 检查登录状态...\n');
-    const isLoggedIn = await checkLoginState();
-    if (!isLoggedIn) {
-      console.error('❌ 未登录，请先运行: npm run xhs login');
-      process.exit(1);
-    }
-  } catch (error) {
-    console.error('❌ 登录失败或超时:', error instanceof Error ? error.message : error);
-    process.exit(1);
-  }
-  try {
-    const cacheFilename = `notes/${noteId}.json`;
-    const cachedDetail = loadFromCache<Note>(cacheFilename);
-    if (cachedDetail && isNoteContentComplete(cachedDetail)) {
-      console.error('📝 使用缓存的笔记详情...\n');
-      console.error(serializeNoteDetail(cachedDetail));
-      return;
-    }
-    if (cachedDetail && !isNoteContentComplete(cachedDetail)) {
-      console.error('📥 缓存内容不完整，从网络更新...\n');
-    } else {
-      console.error('📥 缓存未命中，从网络获取...\n');
-    }
-    const { extractTextFromMCP } = await import('../mcp/format.js');
-    const mcpResponse = await getNoteDetail(noteId);
-
-    if (mcpResponse.isError) {
-      console.error(extractTextFromMCP(mcpResponse));
-      process.exit(1);
-    }
-
-    console.error('💾 笔记详情已缓存\n');
-    console.error(extractTextFromMCP(mcpResponse));
-  } catch (error) {
-    console.error('❌ 获取笔记详情失败:', error);
-    if (error instanceof Error) {
-      console.error('错误信息:', error.message);
-    }
-    process.exit(1);
-  }
-}
-
-
-
-// 如果直接运行此文件
-if (import.meta.url === `file://${process.argv[1]}`) {
-  const noteId = process.argv[2];
-  getNoteDetailByIdCommand(noteId).catch(console.error);
 }

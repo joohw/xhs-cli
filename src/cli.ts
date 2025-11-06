@@ -5,13 +5,17 @@
 import { login } from './core/login.js';
 import { checkLoginState } from './core/check_login_state.js';
 import { getOperationData } from './core/get_operation_data.js';
-import { getNoteDetailByIdCommand } from './core/get_note_detail.js';
-import { getMyProfileCommand } from './core/get_my_profile.js';
+import { getNoteDetail} from './core/get_note_detail.js';
+import { getMyProfile } from './core/get_my_profile.js';
 import { getRecentNotes } from './core/get_recent_notes.js';
-import { postNoteCommand, addPostCommand } from './core/post.js';
+import { postNote, loadPostFromQueue, selectPostInteractively } from './core/post.js';
+import { writePost } from './core/writePost.js';
 import { listQueuePostCommand } from './core/list_available_post.js';
 import { serializeOperationData } from './types/operationData.js';
 import { serializeUserProfile } from './types/userProfile.js';
+import { serializeNoteDetail } from './types/note.js';
+import { POST_QUEUE_DIR } from './config.js';
+import { join } from 'path';
 
 
 // 获取命令行参数
@@ -39,7 +43,6 @@ const commands: Record<string, () => Promise<void>> = {
   'get-operation-data': async () => {
     try {
       const data = await getOperationData();
-      console.error('💾 运营数据已缓存\n');
       console.error(serializeOperationData(data));
     } catch (error) {
       console.error('❌ 获取数据失败:', error instanceof Error ? error.message : error);
@@ -51,16 +54,109 @@ const commands: Record<string, () => Promise<void>> = {
   },
   'get-note-detail-by-id': async () => {
     const noteId = commandArgs[0];
-    await getNoteDetailByIdCommand(noteId);
+    if (!noteId) {
+      console.error('❌ 请提供笔记ID');
+      console.error('使用方法: npm run xhs get-note-detail-by-id <noteId>');
+      process.exit(1);
+    }
+    try {
+      const detail = await getNoteDetail(noteId);
+      if (!detail) {
+        console.error(`❌ 无法获取笔记 ${noteId} 的详情`);
+        process.exit(1);
+      }
+      console.error(serializeNoteDetail(detail));
+    } catch (error) {
+      console.error('❌ 获取笔记详情失败:', error);
+      if (error instanceof Error) {
+        console.error('错误信息:', error.message);
+      }
+      process.exit(1);
+    }
   },
   'get-my-profile': async () => {
-    await getMyProfileCommand();
+    try {
+      const profile = await getMyProfile();
+      console.error(serializeUserProfile(profile));
+    } catch (error) {
+      console.error('❌ 获取用户资料失败:', error);
+      if (error instanceof Error) {
+        console.error('错误信息:', error.message);
+      }
+      process.exit(1);
+    }
   },
   'post': async () => {
-    await postNoteCommand(commandArgs);
+    // 1. 检查是否提供了文件名参数，如果没有则交互式选择
+    let queueFilename: string;
+    if (commandArgs.length === 0 || !commandArgs[0]) {
+      try {
+        queueFilename = await selectPostInteractively();
+      } catch (error) {
+        process.exit(1);
+      }
+    } else {
+      const filename = commandArgs[0];
+      // 确保文件名以 .json 结尾
+      queueFilename = filename.endsWith('.json') ? filename : `${filename}.json`;
+    }
+    // 2. 从缓存目录读取发帖队列文件
+    let params;
+    try {
+      params = loadPostFromQueue(queueFilename);
+    } catch (error) {
+      console.error('❌ 读取发帖队列文件失败:', error instanceof Error ? error.message : error);
+      process.exit(1);
+    }
+    // 3. 发布笔记（传入队列文件名，成功后自动移动文件）
+    try {
+      const result = await postNote(params, queueFilename);
+      if (result.success) {
+        console.error(`\n✅ ${result.message}`);
+        if (result.noteUrl) {
+          console.error(`🔗 链接: ${result.noteUrl}`);
+        }
+      } else {
+        console.error(`\n❌ ${result.message}`);
+      }
+    } catch (error) {
+      console.error('❌ 发布失败:', error);
+      if (error instanceof Error) {
+        console.error('错误信息:', error.message);
+      }
+      process.exit(1);
+    }
   },
   'add-post': async () => {
-    addPostCommand(commandArgs);
+    if (commandArgs.length === 0) {
+      console.error('❌ 错误: 必须提供 post 内容');
+      console.error('💡 使用方法: npm run xhs add-post <content> [--title <title>] [--images <images>] [--scheduled-time <time>]');
+      console.error('💡 计划发布时间格式: ISO 8601 (如 "2024-01-01T10:00:00Z" 或 "2024-01-01 10:00:00")');
+      process.exit(1);
+    }
+    let title: string | undefined;
+    let images: string[] | undefined;
+    let scheduledPublishTime: string | undefined;
+    const content = commandArgs[0];
+    // 解析参数
+    for (let i = 1; i < commandArgs.length; i++) {
+      const arg = commandArgs[i];
+      if (arg === '--title' && i + 1 < commandArgs.length) {
+        title = commandArgs[++i];
+      } else if (arg === '--images' && i + 1 < commandArgs.length) {
+        images = commandArgs[++i].split(',').map(img => img.trim());
+      } else if (arg === '--scheduled-time' && i + 1 < commandArgs.length) {
+        scheduledPublishTime = commandArgs[++i];
+      }
+    }
+    try {
+      const queueFilename = writePost(title, content, images, scheduledPublishTime);
+      console.error(`✅ Post 已添加到队列: ${queueFilename}`);
+      console.error(`📁 文件路径: ${join(POST_QUEUE_DIR, queueFilename)}`);
+    } catch (error) {
+      console.error('❌ 添加失败:', error instanceof Error ? error.message : error);
+      process.exit(1);
+    }
   },
   'list-available-post': async () => {
     listQueuePostCommand();

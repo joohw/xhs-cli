@@ -1,0 +1,53 @@
+# 源代码（只发布编译后的 dist）
+src/
+*.ts
+!*.d.ts
+
+# 开发文件
+tsconfig.json
+*.tsbuildinfo
+
+# 测试文件
+test/
+*.test.ts
+*.spec.ts
+TEST_MCP.md
+
+# 文档（发布时会自动将 README.npm.md 复制为 README.md）
+POSTING_GUIDELINES.md
+MCP_TRANSPORT.md
+CURSOR_MCP.md
+GUIDEFORMCP.md
+TEST_MCP.md
+PUBLISH.md
+
+# 开发工具
+.vscode/
+.idea/
+*.log
+
+# 缓存和临时文件
+.cache/
+cache/
+temp-images/
+*.log
+
+# Git
+.git/
+.gitignore
+
+# 环境变量
+.env
+.env.local
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# Node
+node_modules/
+package-lock.json
+
+# 构建产物（这些会被包含在发布中）
+# dist/ 应该被包含
+

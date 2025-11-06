@@ -7,7 +7,6 @@ import { join } from 'path';
 import { homedir, platform } from 'os';
 import { saveCookie } from '../auth/cookie.js';
 import { getUserProfile } from './get_my_profile.js';
-import { saveToCache } from '../utils/cache.js';
 import type { UserProfile } from '../types/userProfile.js';
 
 

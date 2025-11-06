@@ -14,7 +14,6 @@ import { serializeOperationData } from './types/operationData.js';
 import { serializeUserProfile } from './types/userProfile.js';
 import { serializeNote, serializeNoteDetail } from './types/note.js';
 import { setupMCP } from './scripts/setup_mcp.js';
-import { checkVersionUpdate } from './utils/version_check.js';
 
 
 
@@ -194,11 +193,6 @@ function showHelp() {
 
 // 主函数
 async function main() {
-  // 异步检查版本更新（完全异步，不阻塞主流程）
-  // 只有执行长时间命令时，版本检查才有机会完成并显示
-  checkVersionUpdate().catch(() => {
-    // 静默失败，不影响主流程
-  });
   if (!command || !commands[command]) {
     if (command) {
       console.error(`❌ 未知命令: ${command}\n`);

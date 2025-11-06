@@ -17,6 +17,8 @@ export const USER_PROFILE_CACHE_FILE = join(CACHE_DIR, 'user_profile.json');
 export const POST_QUEUE_DIR = join(CACHE_DIR, 'post', 'queue');
 // 已发布目录
 export const POST_POSTED_DIR = join(CACHE_DIR, 'post', 'posted');
+// 封面图片输出目录
+export const COVER_IMAGES_DIR = join(CACHE_DIR, 'post', 'images', 'covers');
 
 
 

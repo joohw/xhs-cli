@@ -5,7 +5,7 @@
 
 import { launchBrowser } from '../browser/browser.js';
 import { existsSync, readFileSync, mkdirSync, renameSync, writeFileSync } from 'fs';
-import { join } from 'path';
+import { join, extname, basename } from 'path';
 import { homedir } from 'os';
 import { createInterface } from 'readline';
 import { POST_QUEUE_DIR, POST_POSTED_DIR } from '../config.js';
@@ -131,26 +131,71 @@ function moveToPosted(filename: string): void {
 
 
 
+// 下载网络图片到缓存目录
+async function downloadImage(url: string): Promise<string> {
+    try {
+        // 确保图片目录存在
+        const postImagesDir = join(homedir(), '.xhs-cli', 'post', 'images');
+        if (!existsSync(postImagesDir)) {
+            mkdirSync(postImagesDir, { recursive: true });
+        }
+        // 从 URL 中提取文件名（去除查询参数）
+        const urlObj = new URL(url);
+        let filename = basename(urlObj.pathname.split('?')[0]);
+        // 下载图片
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`下载图片失败: HTTP ${response.status} ${response.statusText}`);
+        }
+        // 如果没有扩展名，尝试从 Content-Type 获取
+        if (!extname(filename)) {
+            const contentType = response.headers.get('content-type');
+            let ext = '.jpg'; // 默认扩展名
+            if (contentType) {
+                if (contentType.includes('png')) {
+                    ext = '.png';
+                } else if (contentType.includes('gif')) {
+                    ext = '.gif';
+                } else if (contentType.includes('webp')) {
+                    ext = '.webp';
+                } else if (contentType.includes('jpeg') || contentType.includes('jpg')) {
+                    ext = '.jpg';
+                }
+            }
+            filename = `image_${Date.now()}${ext}`;
+        }
+        // 生成本地文件路径
+        const localPath = join(postImagesDir, filename);
+        // 如果文件已存在，直接返回（避免重复下载）
+        if (existsSync(localPath)) {
+            return localPath;
+        }
+        // 读取图片数据
+        const arrayBuffer = await response.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+        // 保存到本地
+        writeFileSync(localPath, buffer);
+        return localPath;
+    } catch (error) {
+        throw new Error(`下载网络图片失败: ${error instanceof Error ? error.message : String(error)}`);
+    }
+}
+
+
 // 辅助函数：处理图片路径（支持本地路径和URL）
 async function prepareImagePath(imagePath: string): Promise<string> {
     if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
-        throw new Error('URL 图片下载功能待实现，请使用本地文件路径');
+        // 网络图片，先下载到缓存目录
+        return await downloadImage(imagePath);
     }
-    // 如果图片路径是相对路径，优先从缓存目录的 post/images 目录查找
     let absolutePath: string;
     if (imagePath.startsWith('/') || /^[A-Z]:/.test(imagePath)) {
         // 绝对路径，直接使用
         absolutePath = imagePath;
     } else {
-        // 相对路径，先尝试从用户目录的 post/images 目录查找
+        // 相对路径，从缓存目录的 post/images 目录查找
         const postImagesDir = join(homedir(), '.xhs-cli', 'post', 'images');
-        const postImagePath = join(postImagesDir, imagePath);
-        if (existsSync(postImagePath)) {
-            absolutePath = postImagePath;
-        } else {
-            // 如果不在 post/images 目录，则从当前工作目录查找
-            absolutePath = join(process.cwd(), imagePath);
-        }
+        absolutePath = join(postImagesDir, imagePath);
     }
     if (!existsSync(absolutePath)) {
         throw new Error(`图片文件不存在: ${imagePath} (解析为: ${absolutePath})`);
@@ -176,40 +221,33 @@ export async function postNote(params: PostNoteParams, queueFilename?: string): 
         if (isLoginPage) {
             throw new Error('未登录，请先运行 npm run xhs login 进行登录');
         }
-
         // 1. 导航到发帖页面（不使用 openFilePicker 参数）
         console.error('📥 正在打开发布页面...');
         await page.goto('https://creator.xiaohongshu.com/publish/publish?from=homepage&target=image', {
             waitUntil: 'domcontentloaded',
             timeout: 30000,
         });
-
         // 2. 等待页面加载
         await new Promise(resolve => setTimeout(resolve, 3000));
-
         // 3. 上传图片（如果有，需要先上传图片）
         if (params.images && params.images.length > 0) {
             console.error('📷 正在上传图片...');
             try {
                 // 等待上传输入框出现
                 await page.waitForSelector('input.upload-input[type="file"]', { timeout: 10000 });
-
                 const uploadInput = await page.$('input.upload-input[type="file"]');
                 if (!uploadInput) {
                     throw new Error('未找到图片上传输入框');
                 }
-
                 // 准备图片路径数组
                 const imagePaths: string[] = [];
                 for (const imagePath of params.images) {
                     const absolutePath = await prepareImagePath(imagePath);
                     imagePaths.push(absolutePath);
                 }
-
                 // 上传文件（支持多文件）
                 await uploadInput.uploadFile(...imagePaths);
                 console.error(`✅ 已上传 ${imagePaths.length} 张图片`);
-
                 // 等待图片上传完成（可能需要等待上传进度）
                 await new Promise(resolve => setTimeout(resolve, 2000));
             } catch (error) {
@@ -217,7 +255,6 @@ export async function postNote(params: PostNoteParams, queueFilename?: string): 
                 throw error;
             }
         }
-
         // 4. 填写标题（如果有）
         if (params.title) {
             try {

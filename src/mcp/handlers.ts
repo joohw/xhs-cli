@@ -10,13 +10,15 @@ import { getRecentNotes } from '../core/get_recent_notes.js';
 import { getMyProfile } from '../core/get_my_profile.js';
 import { listQueuePost } from '../core/list_available_post.js';
 import { loadPostFromQueue, createPost, PostNoteParams } from '../core/post.js';
+import { generateCoverTitleOnly } from '../Illustrate/generateCover.js';
 import { serializeNote, serializeNoteDetail } from '../types/note.js';
 import { serializeOperationData } from '../types/operationData.js';
 import { serializeUserProfile } from '../types/userProfile.js';
 import { formatForMCP, formatErrorForMCP } from './format.js';
-import { existsSync } from 'fs';
-import { join } from 'path';
-import { POST_QUEUE_DIR } from '../config.js';
+import { existsSync, readFileSync } from 'fs';
+import { join, dirname, resolve } from 'path';
+import { fileURLToPath } from 'url';
+import { POST_QUEUE_DIR, COVER_IMAGES_DIR } from '../config.js';
 
 
 
@@ -134,9 +136,29 @@ export async function handleGetNoteDetailById(noteId: string) {
 
 
 
-// 读取发帖指导原则（需要从 CLI 中提取核心函数，暂时用占位）
+// 读取发帖指导原则
 export async function handleReadPostingGuidelines(generatePlan: boolean = true) {
-  return formatErrorForMCP(new Error('功能待实现'));
+  try {
+    // 获取项目根目录路径
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = dirname(__filename);
+    // handlers.ts 在 src/mcp/ 目录下，需要向上两级到项目根目录
+    const projectRoot = resolve(__dirname, '..', '..');
+    const guidelinesPath = join(projectRoot, 'prompts', 'POSTING_GUIDELINES.md');
+    if (!existsSync(guidelinesPath)) {
+      return formatErrorForMCP(new Error(`发帖指导原则文件不存在: ${guidelinesPath}`));
+    }
+    const content = readFileSync(guidelinesPath, 'utf-8');
+    return formatForMCP(
+      {
+        content,
+        generatePlan,
+      },
+      () => content
+    );
+  } catch (error) {
+    return formatErrorForMCP(error);
+  }
 }
 
 
@@ -289,6 +311,34 @@ export async function handleCreateOrUpdatePost(title: string, params: PostNotePa
         message: `笔记已${isUpdate ? '更新' : '创建'}: ${resultFilename}`,
       },
       () => `✅ 笔记已${isUpdate ? '更新' : '创建'}: ${resultFilename}\n标题: ${title}`
+    );
+  } catch (error) {
+    return formatErrorForMCP(error);
+  }
+}
+
+
+
+// 生成封面图片
+export async function handleGenerateCover(title: string, templateId: string = '1') {
+  try {
+    if (!title || typeof title !== 'string' || title.trim().length === 0) {
+      return formatErrorForMCP(new Error('标题是必需的且不能为空'));
+    }
+    // 使用缓存目录作为输出目录
+    const imagePath = await generateCoverTitleOnly(title, templateId, COVER_IMAGES_DIR);
+    // 获取文件名
+    const filename = imagePath.split(/[/\\]/).pop() || '';
+    // 返回相对路径（相对于封面图片目录）
+    const relativePath = `covers/${filename}`;
+    return formatForMCP(
+      {
+        imagePath: relativePath,
+        fullPath: imagePath,
+        templateId,
+        message: `封面已生成: ${relativePath}`,
+      },
+      () => `✅ 封面已生成: ${relativePath}\n完整路径: ${imagePath}`
     );
   } catch (error) {
     return formatErrorForMCP(error);

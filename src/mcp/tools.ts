@@ -57,7 +57,7 @@ export function getTools() {
     },
     {
       name: 'xhs_read_posting_guidelines',
-      description: '读取发帖指导原则并生成发帖计划建议',
+      description: '读取发帖指导原则并生成发帖计划建议。注意：要添加待发布的笔记，请使用 xhs_create_or_update_post 工具，传入标题和内容等参数。标题将作为唯一键，如果已存在相同标题的笔记则会更新。',
       inputSchema: {
         type: 'object',
         properties: {
@@ -101,7 +101,7 @@ export function getTools() {
     },
     {
       name: 'xhs_create_or_update_post',
-      description: '创建或更新待发布的笔记（使用标题作为唯一键，如果已存在则更新）',
+      description: '创建或更新待发布的笔记，写完帖子可以调用这个命令进入队列',
       inputSchema: {
         type: 'object',
         properties: {
@@ -141,6 +141,25 @@ export function getTools() {
           },
         },
         required: ['title', 'content'],
+      },
+    },
+    {
+      name: 'xhs_generate_cover',
+      description: '根据标题生成小红书封面图片（支持Markdown格式的标题，如加粗、高亮等）',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          title: {
+            type: 'string',
+            description: '笔记标题（支持Markdown格式，如 **加粗**、`代码`等）',
+          },
+          templateId: {
+            type: 'string',
+            description: '封面模板ID（默认为"1"）',
+            default: '1',
+          },
+        },
+        required: ['title'],
       },
     },
   ];

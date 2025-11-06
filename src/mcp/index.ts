@@ -21,6 +21,7 @@ import {
   handleListQueuePosts,
   handleGetQueuePostDetail,
   handleCreateOrUpdatePost,
+  handleGenerateCover,
   handleLogin,
 } from './handlers.js';
 import { loadFromCache } from '../utils/cache.js';
@@ -94,6 +95,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             draft: (args as any)?.draft,
             scheduledPublishTime: (args as any)?.scheduledPublishTime,
           }
+        );
+
+      case 'xhs_generate_cover':
+        return await handleGenerateCover(
+          (args as any)?.title,
+          (args as any)?.templateId || '1'
         );
 
       default:

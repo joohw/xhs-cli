@@ -46,31 +46,57 @@ function findChromePath(): string | null {
 
 
 // 启动浏览器（支持无头模式）
-export async function launchBrowser(headless: boolean = true): Promise<Browser> {
+export async function launchBrowser(headless: boolean = true, extraArgs: string[] = []): Promise<Browser> {
   const chromePath = findChromePath();
   const userDataDir = join(homedir(), '.xhs-mcp', 'browser-data');
   if (!existsSync(userDataDir)) {
     mkdirSync(userDataDir, { recursive: true });
   }
+  // 基础参数
+  const baseArgs = [
+    '--no-sandbox',
+    '--disable-setuid-sandbox',
+    '--disable-dev-shm-usage',
+    '--disable-gpu',
+    '--disable-blink-features=AutomationControlled',
+    '--disable-restore-session-state',
+    '--disable-session-crashed-bubble',
+  ];
   // 如果找到了 Chrome 路径，使用它；否则让 Puppeteer 自动查找
   const launchOptions: any = {
     headless: headless,
     userDataDir: userDataDir,
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-gpu',
-      '--disable-blink-features=AutomationControlled',
-      '--disable-restore-session-state',
-      '--disable-session-crashed-bubble',
-    ],
+    args: [...baseArgs, ...extraArgs],
     defaultViewport: headless ? { width: 1280, height: 720 } : null,
   };
   if (chromePath) {
     launchOptions.executablePath = chromePath;
+  } else {
+    // 如果找不到系统浏览器，尝试使用 puppeteer 的内置方法查找
+    // 注意：如果设置了 PUPPETEER_SKIP_CHROMIUM_DOWNLOAD，这里可能会失败
+    try {
+      const executablePath = puppeteer.executablePath();
+      if (executablePath && existsSync(executablePath)) {
+        launchOptions.executablePath = executablePath;
+      }
+    } catch (e) {
+      // 忽略错误，继续尝试启动
+    }
   }
-  return await puppeteer.launch(launchOptions);
+  try {
+    return await puppeteer.launch(launchOptions);
+  } catch (error) {
+    // 如果启动失败，给出清晰的错误提示
+    if (error instanceof Error) {
+      if (error.message.includes('Executable doesn\'t exist') || error.message.includes('Could not find browser')) {
+        throw new Error(
+          '未找到浏览器。请确保已安装 Chrome/Chromium 浏览器，或通过环境变量 CHROME_PATH 指定浏览器路径。\n' +
+          '例如：export CHROME_PATH="/path/to/chrome" (Linux/Mac) 或 set CHROME_PATH="C:\\path\\to\\chrome.exe" (Windows)'
+        );
+      }
+    }
+    throw error;
+  }
 }
 
 

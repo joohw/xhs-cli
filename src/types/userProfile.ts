@@ -28,3 +28,11 @@ export function serializeUserProfile(profile: UserProfile): string {
   lines.push('='.repeat(40));
   return lines.join('\n');
 }
+
+
+export function validateUserProfile(profile: UserProfile): boolean {
+  if (!profile.accountName || !profile.fansCount || !profile.followingCount) {
+    return false;
+  }
+  return true;
+}

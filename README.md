@@ -19,12 +19,17 @@
 ## 安装
 
 ```bash
-# 全局安装
-npm install -g xhs-cli
+# 全局安装（推荐：跳过 Chromium 下载，使用系统浏览器）
+PUPPETEER_SKIP_DOWNLOAD=true npm install -g xhs-cli
 
 # 或者使用 npx（无需安装）
 npx xhs-cli <command>
 ```
+
+**注意**：
+- 本包在安装时**不会下载 Chromium**（减少安装体积），会自动使用系统已安装的 Chrome/Chromium 浏览器
+- 如果您的系统没有安装 Chrome/Chromium，请先安装，或者使用 npm install -g xhs-cli,但是在国内的网络环境，直接安装可能会报错
+
 
 ## 前置要求
 

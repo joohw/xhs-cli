@@ -1,12 +1,12 @@
 {
   "name": "xhs-cli",
-  "version": "1.0.0",
+  "version": "1.0.3",
   "description": "面向个人创作者的小红书 CLI 工具和 MCP 服务器 - 帮助创作者管理、分析和发布小红书内容",
   "type": "module",
   "main": "dist/mcp/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "xhs": "./dist/cli.js"
+    "xhs": "dist/cli.js"
   },
   "files": [
     "dist",
@@ -53,7 +53,7 @@
     "@modelcontextprotocol/sdk": "^1.0.4",
     "jsqr": "^1.4.0",
     "pngjs": "^7.0.0",
-    "puppeteer": "^24.28.0",
+    "puppeteer": "^24.29.0",
     "qrcode-terminal": "^0.12.0"
   },
   "devDependencies": {

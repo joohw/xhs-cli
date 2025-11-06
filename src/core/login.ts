@@ -1,93 +1,10 @@
 // 使用 Puppeteer 实现小红书登录
 
 
-import puppeteer, { Browser, Page } from 'puppeteer';
-import { existsSync, mkdirSync } from 'fs';
-import { join } from 'path';
-import { homedir, platform } from 'os';
+import { Browser, Page } from 'puppeteer';
+import { launchBrowser } from '../browser/browser.js';
 import { getUserProfile } from './get_my_profile.js';
-import type { UserProfile } from '../types/userProfile.js';
-
-
-
-// 查找系统 Chrome 路径（跨平台支持）
-function findChromePath(): string | null {
-  // 优先使用环境变量指定的路径
-  if (process.env.CHROME_PATH && existsSync(process.env.CHROME_PATH)) {
-    return process.env.CHROME_PATH;
-  }
-  const os = platform();
-  let possiblePaths: string[] = [];
-  if (os === 'win32') {
-    // Windows 路径
-    possiblePaths = [
-      'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-      'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
-      process.env.LOCALAPPDATA ? join(process.env.LOCALAPPDATA, 'Google', 'Chrome', 'Application', 'chrome.exe') : '',
-    ];
-  } else if (os === 'darwin') {
-    // macOS 路径
-    possiblePaths = [
-      '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-      join(homedir(), 'Applications', 'Google Chrome.app', 'Contents', 'MacOS', 'Google Chrome'),
-    ];
-  } else {
-    // Linux 路径
-    possiblePaths = [
-      '/usr/bin/google-chrome',
-      '/usr/bin/google-chrome-stable',
-      '/usr/bin/chromium',
-      '/usr/bin/chromium-browser',
-      '/snap/bin/chromium',
-    ];
-  }
-  for (const path of possiblePaths) {
-    if (path && existsSync(path)) {
-      return path;
-    }
-  }
-  return null;
-}
-
-
-// 启动浏览器（登录时使用非无头模式）
-async function launchBrowser(): Promise<Browser> {
-  const chromePath = findChromePath();
-  const userDataDir = join(homedir(), '.xhs-mcp', 'browser-data');
-  if (!existsSync(userDataDir)) {
-    mkdirSync(userDataDir, { recursive: true });
-  }
-  const launchOptions: any = {
-    headless: false, // 登录时使用非无头模式，让用户可以看到并操作
-    userDataDir: userDataDir,
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-blink-features=AutomationControlled',
-      '--disable-dev-shm-usage',
-      '--disable-accelerated-2d-canvas',
-      '--disable-gpu',
-      '--disable-software-rasterizer',
-      '--disable-extensions',
-      '--disable-background-networking',
-      '--disable-background-timer-throttling',
-      '--disable-backgrounding-occluded-windows',
-      '--disable-renderer-backgrounding',
-      '--disable-features=TranslateUI',
-      '--disable-ipc-flooding-protection',
-      '--disable-sync',
-      '--disable-default-apps',
-      '--no-first-run',
-      '--no-default-browser-check',
-      '--disable-infobars',
-    ],
-    defaultViewport: null, // 设置为 null 以允许窗口自由调整大小
-  };
-  if (chromePath) {
-    launchOptions.executablePath = chromePath;
-  }
-  return await puppeteer.launch(launchOptions);
-}
+import { validateUserProfile, UserProfile } from '../types/userProfile.js';
 
 
 // 等待登录完成
@@ -106,6 +23,10 @@ async function waitForLogin(page: Page, timeout: number = 180000): Promise<boole
   try {
     while (Date.now() - startTime < timeout) {
       try {
+        // 检查浏览器和页面是否已断开连接
+        if (page.isClosed() || !page.browser().isConnected()) {
+          return false;
+        }
         await Promise.race([
           ...navigationPromises,
           new Promise(resolve => setTimeout(resolve, 2000)),
@@ -114,6 +35,10 @@ async function waitForLogin(page: Page, timeout: number = 180000): Promise<boole
         navigationPromises.length = 0;
         // 等待页面稳定（网络请求完成）
         await new Promise(resolve => setTimeout(resolve, 2000));
+        // 再次检查连接状态
+        if (page.isClosed() || !page.browser().isConnected()) {
+          return false;
+        }
         // 检查当前页面URL
         const currentUrl = page.url();
         // 如果URL发生变化，说明可能发生了跳转（比如登录成功后的重定向）
@@ -121,6 +46,10 @@ async function waitForLogin(page: Page, timeout: number = 180000): Promise<boole
           lastCheckUrl = currentUrl;
           // 等待页面完全加载（等待网络请求完成）
           await new Promise(resolve => setTimeout(resolve, 3000));
+          // 再次检查连接状态
+          if (page.isClosed() || !page.browser().isConnected()) {
+            return false;
+          }
           // 如果当前不在登录页面，且在小红书域名下，尝试使用轻量方式检测
           const isLoginPage = currentUrl.includes('/login') || currentUrl.includes('/signin');
           if (!isLoginPage && currentUrl.includes('xiaohongshu.com')) {
@@ -157,6 +86,10 @@ async function waitForLogin(page: Page, timeout: number = 180000): Promise<boole
         // URL 没有变化，继续等待
         await new Promise(resolve => setTimeout(resolve, 2000));
       } catch (e) {
+        // 检查是否是浏览器关闭导致的错误
+        if (e instanceof Error && (e.message.includes('Target closed') || e.message.includes('Session closed') || e.message.includes('Protocol error'))) {
+          return false;
+        }
         // 如果访问出错，可能是网络问题，继续等待
         await new Promise(resolve => setTimeout(resolve, 2000));
       }
@@ -174,22 +107,58 @@ async function waitForLogin(page: Page, timeout: number = 180000): Promise<boole
 async function login(): Promise<UserProfile | null> {
   let browser: Browser | null = null;
   try {
-    browser = await launchBrowser();
+    // 登录时使用非无头模式，让用户可以看到并操作
+    // 添加登录时需要的额外参数
+    const loginExtraArgs = [
+      '--disable-accelerated-2d-canvas',
+      '--disable-software-rasterizer',
+      '--disable-extensions',
+      '--disable-background-networking',
+      '--disable-background-timer-throttling',
+      '--disable-backgrounding-occluded-windows',
+      '--disable-renderer-backgrounding',
+      '--disable-features=TranslateUI',
+      '--disable-ipc-flooding-protection',
+      '--disable-sync',
+      '--disable-default-apps',
+      '--no-first-run',
+      '--no-default-browser-check',
+      '--disable-infobars',
+    ];
+    browser = await launchBrowser(false, loginExtraArgs);
     const page = await browser.newPage();
     await page.goto('https://creator.xiaohongshu.com/new/home', {
       waitUntil: 'domcontentloaded',
       timeout: 30000,
     });
     await new Promise(resolve => setTimeout(resolve, 2000));
+    // 检查页面是否已关闭
+    if (page.isClosed() || !page.browser().isConnected()) {
+      console.error('❌ 浏览器已关闭，登录中断\n');
+      return null;
+    }
     const currentUrl = page.url();
     const isLoginPage = currentUrl.includes('/login') || currentUrl.includes('/signin');
     if (!isLoginPage && currentUrl.includes('creator.xiaohongshu.com')) {
+      // 再次检查页面连接状态
+      if (page.isClosed() || !page.browser().isConnected()) {
+        console.error('❌ 浏览器已关闭，登录中断\n');
+        return null;
+      }
       const userProfile = await getUserProfile(page);
+      if (!validateUserProfile(userProfile)) {
+        throw new Error('获取用户资料失败：返回的数据无效');
+      }
       return userProfile;
     } else {
       console.error('⏰ 您有 120 秒时间完成登录\n');
       const loginSuccess = await waitForLogin(page, 120000);
       if (loginSuccess) {
+        // 检查页面连接状态
+        if (page.isClosed() || !page.browser().isConnected()) {
+          console.error('❌ 浏览器已关闭，登录中断\n');
+          return null;
+        }
         const userProfile = await getUserProfile(page);
         return userProfile;
       } else {
@@ -198,14 +167,26 @@ async function login(): Promise<UserProfile | null> {
       }
     }
   } catch (error) {
-    console.error('❌ 登录过程出错:', error);
-    if (error instanceof Error) {
-      console.error('错误信息:', error.message);
+    // 检查是否是浏览器关闭导致的错误
+    if (error instanceof Error && (error.message.includes('Target closed') || error.message.includes('Session closed') || error.message.includes('Protocol error'))) {
+      console.error('❌ 浏览器已关闭，登录中断\n');
+    } else {
+      console.error('❌ 登录过程出错:', error);
+      if (error instanceof Error) {
+        console.error('错误信息:', error.message);
+      }
     }
     return null;
   } finally {
     if (browser) {
-      await browser.close();
+      try {
+        // 检查浏览器是否已连接，避免重复关闭导致的错误
+        if (browser.isConnected()) {
+          await browser.close();
+        }
+      } catch (e) {
+        // 忽略关闭浏览器时的错误（可能已经被用户关闭）
+      }
     }
   }
 }

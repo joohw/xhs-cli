@@ -162,5 +162,23 @@ export function getTools() {
         required: ['title'],
       },
     },
+    {
+      name: 'xhs_save_example',
+      description: '保存范文（txt格式，文件名必须以.txt结尾）',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          filename: {
+            type: 'string',
+            description: '范文文件名（必须以.txt结尾）',
+          },
+          content: {
+            type: 'string',
+            description: '范文内容（纯文本，不支持Markdown）',
+          },
+        },
+        required: ['filename', 'content'],
+      },
+    },
   ];
 }

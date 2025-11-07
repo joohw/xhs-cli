@@ -19,16 +19,14 @@
 ## 安装
 
 ```bash
-# 全局安装（推荐：跳过 Chromium 下载，使用系统浏览器）
-PUPPETEER_SKIP_DOWNLOAD=true npm install -g xhs-cli
+# 全局安装（推荐）
+npm install -g xhs-cli
 
-# 或者使用 npx（无需安装）
-npx xhs-cli <command>
 ```
 
 **注意**：
 - 本包在安装时**不会下载 Chromium**（减少安装体积），会自动使用系统已安装的 Chrome/Chromium 浏览器
-- 如果您的系统没有安装 Chrome/Chromium，请先安装，或者使用 npm install -g xhs-cli,但是在国内的网络环境，直接安装可能会报错
+- 如果您的系统没有安装 Chrome/Chromium，请先安装 Chrome 浏览器，然后再运行`xhs login`命令。
 
 
 ## 前置要求
@@ -45,6 +43,9 @@ xhs login
 ```
 
 这会打开浏览器，让你登录小红书账号。
+
+xhs-cli不会保存您的登录信息，所有的信息都存储在您的浏览器里。
+
 
 ### 2. 检查登录状态
 
@@ -117,8 +118,8 @@ xhs
 
 ### 配置 MCP 客户端
 
-详细的 MCP 配置说明请访问项目主页：
-https://github.com/joohw/xhs-cli
+详细的 MCP 配置说明请参阅本仓库根目录的 [MCPCOOKBOOK](MCPCOOKBOOK.md)。
+
 
 ## 功能特性
 

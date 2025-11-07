@@ -100,17 +100,73 @@ export function parseMarkdown(text: string, baseStyle?: any): React.ReactElement
       
       // 添加匹配的格式化文本
       const matchStyle = { ...style };
-      // 所有格式强调都使用马克笔效果（包括加粗）
-      if (match.type === 'bold' || match.type === 'underline') {
-        // 使用 background-image 的 linear-gradient 在文字底部创建背景条
-        const highlightColor = getHighlightColor();
-        // 创建一个从底部向上 8px 的背景渐变
+      // 格式化样式处理
+      // - 加粗：除了可能的高亮，还应明确设置较大的 fontWeight，以确保在渲染器（satori）中可见
+      // - 下划线：使用 textDecoration 以得到稳定的下划线效果，同时保留高亮作为可选视觉增强
+      const highlightColor = getHighlightColor();
+      if (match.type === 'bold') {
+        // 强制加粗（如果外层已经有 weight，则取更大的那个）
+        const outerWeight = (style && style.fontWeight) ? style.fontWeight : 400;
+        matchStyle.fontWeight = Math.max(outerWeight, 700);
+        // 兼容性：同时保留马克笔式的底部高亮（可被渲染器忽略）
         matchStyle.backgroundImage = `linear-gradient(to top, ${highlightColor} 0%, ${highlightColor} 8px, transparent 8px, transparent 100%)`;
         matchStyle.backgroundPosition = 'bottom';
         matchStyle.backgroundRepeat = 'no-repeat';
         matchStyle.backgroundSize = '100% 8px';
+      } else if (match.type === 'underline') {
+        // 马克笔风格：用绝对定位div模拟下划线，兼容satori
+        const markerColors = [
+          'rgba(255,235,59,0.6)',   // 黄色
+          'rgba(255,152,0,0.5)',   // 橙色
+          'rgba(76,175,80,0.5)',   // 绿色
+          'rgba(33,150,243,0.5)',  // 蓝色
+          'rgba(255,64,129,0.5)',  // 粉色
+          'rgba(156,39,176,0.5)',  // 紫色
+          'rgba(255,193,7,0.5)',   // 金黄
+          'rgba(236,64,122,0.5)',  // 粉红
+        ];
+        const markerColor = markerColors[Math.floor(Math.random() * markerColors.length)];
+        // 外层span: flex+relative，内层span: 文字，div: 绝对定位色块
+        const nested = parse(match.content, style);
+        result.push(React.createElement('span', {
+          key: `markdown-${keyIndex++}`,
+          style: {
+            display: 'flex',
+            flexDirection: 'row',
+            flexWrap: 'nowrap',
+            alignItems: 'flex-end',
+            position: 'relative',
+            lineHeight: 1,
+            padding: 0,
+            margin: 0,
+            whiteSpace: 'nowrap',
+          },
+        }, [
+          React.createElement('span', {
+            key: 'text',
+            style: {
+              position: 'relative',
+              zIndex: 1,
+              whiteSpace: 'nowrap',
+            },
+          }, nested),
+          React.createElement('div', {
+            key: 'marker',
+            style: {
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              bottom: 0,
+              height: '30px',
+              background: markerColor,
+              zIndex: 0,
+              borderRadius: '8px',
+            },
+          })
+        ]));
+        lastIndex = match.end;
+        continue;
       }
-      
       // 递归解析匹配内容（支持嵌套）
       const nested = parse(match.content, matchStyle);
       // satori 只支持 flex 或 none，所以使用 flex 并设置为行内布局

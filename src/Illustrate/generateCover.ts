@@ -1,64 +1,52 @@
-// 封面生成核心功能
-import satori from 'satori';
-import { Resvg } from '@resvg/resvg-js';
-import { writeFileSync, existsSync, mkdirSync } from 'fs';
-import { getCoverTemplate } from './templates.js';
-import { join } from 'path';
-import { loadAllFonts } from './fonts.js';
-import { resetHighlightColor } from './utils/markdown.js';
+// src/Illustrate/generateCover.ts
+
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { launchBrowser } from '../browser/browser.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 
-// 小红书封面尺寸（2:3比例）
-const COVER_WIDTH = 1080;
-const COVER_HEIGHT = 1620;
-
-
-
-// 加载字体（使用字体管理系统）
-async function loadFonts() {
-  return await loadAllFonts();
-}
-
-
-// 函数1：生成封面（只支持标题，不支持内容）
-export async function generateCoverTitleOnly(title: string, templateId: string = '1', outputDir?: string): Promise<string> {
-  // 验证封面模板ID
-  const template = getCoverTemplate(templateId);
-  if (!template) {
-    throw new Error(`封面模板ID "${templateId}" 不存在`);
+// 基于标题生成封面图片
+export async function generateCover(
+  title: string,
+  outputPath: string,
+  templateId: string = '1',
+  headless: boolean = true): Promise<string[]> {
+  // generateCover.js 在 dist/Illustrate/ 目录下，模板在 dist/templates/cover/ 目录下
+  const htmlPath = path.resolve(__dirname, '..', 'templates', 'cover', `template_${templateId}.html`);
+  const url = `file://${htmlPath}?title=${encodeURIComponent(title)}`;
+  const browser = await launchBrowser(headless, [
+  ]);
+  try {
+    const page = await browser.newPage();
+    await page.setViewport({ width: 1080, height: 1620, deviceScaleFactor: 1 });
+    await page.goto(url, { waitUntil: 'networkidle0' });
+    await page.evaluate(() => {
+      const html = document.documentElement;
+      const body = document.body;
+      html.style.width = '1080px';
+      html.style.height = '1620px';
+      html.style.margin = '0';
+      html.style.padding = '0';
+      html.style.overflow = 'hidden';
+      body.style.width = '1080px';
+      body.style.height = '1620px';
+      body.style.margin = '0';
+      body.style.padding = '0';
+      body.style.overflow = 'hidden';
+    });
+    const timestamp = Date.now();
+    const coverPath = path.join(outputPath, `cover_${timestamp}.png`);
+    await new Promise(r => setTimeout(r, 500));
+    await page.screenshot({
+      path: coverPath as `${string}.png`,
+      fullPage: false,
+      clip: { x: 0, y: 0, width: 1080, height: 1620 }
+    });
+    return [coverPath];
+  } finally {
+    await browser.close();
   }
-  // 如果没有指定输出目录，使用默认目录
-  if (!outputDir) {
-    outputDir = join(process.cwd(), 'public', 'images');
-  }
-  // 确保输出目录存在
-  if (!existsSync(outputDir)) {
-    mkdirSync(outputDir, { recursive: true });
-  }
-  // 加载字体
-  const fonts = await loadFonts();
-  // 重置高亮颜色（为每张新图片生成随机颜色）
-  resetHighlightColor();
-  // 使用模板渲染仅标题的 React 元素
-  const element = template.render(title);
-  // 使用 satori 生成 SVG（satori 会自动匹配字体）
-  const svg = await satori(element, {
-    width: COVER_WIDTH,
-    height: COVER_HEIGHT,
-    fonts: fonts,
-  });
-  // 使用 @resvg/resvg-js 将 SVG 转换为 PNG
-  const resvg = new Resvg(svg, {
-    fitTo: {
-      mode: 'width',
-      value: COVER_WIDTH,
-    },
-  });
-  const pngData = resvg.render();
-  const pngBuffer = pngData.asPng();
-  // 保存图片
-  const filename = `cover-${template.id}-${Date.now()}.png`;
-  const filepath = join(outputDir, filename);
-  writeFileSync(filepath, pngBuffer);
-  return filepath;
 }

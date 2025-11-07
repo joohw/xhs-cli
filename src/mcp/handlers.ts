@@ -9,14 +9,18 @@ import { getNoteDetail } from '../core/get_note_detail.js';
 import { getRecentNotes } from '../core/get_recent_notes.js';
 import { getMyProfile } from '../core/get_my_profile.js';
 import { listQueuePost } from '../core/list_available_post.js';
-import { loadPostFromQueue, createPost, PostNoteParams } from '../core/post.js';
-import { generateCoverTitleOnly } from '../Illustrate/generateCover.js';
+import { loadPostFromQueue } from '../core/post.js';
+import { PostNoteParams } from '../types/post.js';
+import { createPost } from '../core/writePost.js';
+import { saveExample } from '../core/examples.js';
+import { titleToFilename } from '../utils/titleToFilename.js';
+import { generateCover } from '../Illustrate/generateCover.js';
 import { serializeNote, serializeNoteDetail } from '../types/note.js';
 import { serializeOperationData } from '../types/operationData.js';
 import { serializeUserProfile } from '../types/userProfile.js';
 import { formatForMCP, formatErrorForMCP } from './format.js';
 import { existsSync, readFileSync } from 'fs';
-import { join, dirname, resolve } from 'path';
+import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { POST_QUEUE_DIR, COVER_IMAGES_DIR } from '../config.js';
 
@@ -139,12 +143,11 @@ export async function handleGetNoteDetailById(noteId: string) {
 // 读取发帖指导原则
 export async function handleReadPostingGuidelines(generatePlan: boolean = true) {
   try {
-    // 获取项目根目录路径
+    // 获取文件路径
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = dirname(__filename);
-    // handlers.ts 在 src/mcp/ 目录下，需要向上两级到项目根目录
-    const projectRoot = resolve(__dirname, '..', '..');
-    const guidelinesPath = join(projectRoot, 'prompts', 'POSTING_GUIDELINES.md');
+    // handlers.js 在 dist/mcp/ 目录下，向上一级到 dist 目录，然后进入 prompts
+    const guidelinesPath = join(__dirname, '..', 'prompts', 'POSTING_GUIDELINES.md');
     if (!existsSync(guidelinesPath)) {
       return formatErrorForMCP(new Error(`发帖指导原则文件不存在: ${guidelinesPath}`));
     }
@@ -204,23 +207,17 @@ function serializeQueuePostDetail(params: PostNoteParams, filename: string): str
   }
   lines.push(`内容:`);
   const contentLines = params.content.split('\n');
-  contentLines.forEach(line => {
+  contentLines.forEach((line: string) => {
     lines.push(`  ${line}`);
   });
-  if (params.images && params.images.length > 0) {
-    lines.push(`图片 (${params.images.length}张):`);
-    params.images.forEach((img, index) => {
-      lines.push(`  ${index + 1}. ${img}`);
-    });
-  }
   if (params.tags && params.tags.length > 0) {
     lines.push(`标签: ${params.tags.join(', ')}`);
   }
-  if (params.location) {
-    lines.push(`位置: ${params.location}`);
-  }
-  if (params.draft !== undefined) {
-    lines.push(`保存为草稿: ${params.draft ? '是' : '否'}`);
+  if (params.images && params.images.length > 0) {
+    lines.push(`图片 (${params.images.length}张):`);
+    params.images.forEach((img: string, index: number) => {
+      lines.push(`  ${index + 1}. ${img}`);
+    });
   }
   if (params.scheduledPublishTime) {
     lines.push(`计划发布时间: ${params.scheduledPublishTime}`);
@@ -245,7 +242,7 @@ export async function handleListQueuePosts() {
           size: post.size,
         })),
       },
-      () => posts.length === 0 
+      () => posts.length === 0
         ? '📭 队列中没有待发布的笔记'
         : `📋 待发布队列 (共 ${posts.length} 个):\n\n${posts.map(post => serializeQueuePostItem(post)).join('\n\n')}`
     );
@@ -277,38 +274,30 @@ export async function handleGetQueuePostDetail(filename: string) {
 
 
 // 创建或更新待发布的笔记
-export async function handleCreateOrUpdatePost(title: string, params: PostNoteParams) {
+export async function handleCreateOrUpdatePost(
+  title: string,
+  content: string,
+  images?: string[],
+  textToCover?: boolean,
+  scheduledPublishTime?: string,
+) {
   try {
     if (!title || typeof title !== 'string' || title.trim().length === 0) {
       return formatErrorForMCP(new Error('标题是必需的且不能为空'));
     }
-    if (!params.content || typeof params.content !== 'string') {
+    if (!content || typeof content !== 'string') {
       return formatErrorForMCP(new Error('content 字段是必需的且必须是字符串'));
     }
-    // 生成文件名（复制 titleToFilename 的逻辑）
-    let filename = title
-      .replace(/[<>:"/\\|?*]/g, '-')
-      .replace(/\s+/g, '-')
-      .replace(/[^\w\u4e00-\u9fa5-]/g, '')
-      .replace(/-+/g, '-')
-      .replace(/^-|-$/g, '');
-    if (filename.length > 200) {
-      filename = filename.substring(0, 200);
-    }
-    if (!filename) {
-      filename = 'untitled';
-    }
-    const queueFilename = `${filename}.json`;
+    // 使用 titleToFilename 生成文件名
+    const queueFilename = titleToFilename(title);
     const queueFilePath = join(POST_QUEUE_DIR, queueFilename);
     const isUpdate = existsSync(queueFilePath);
-    // 创建或更新
-    const resultFilename = createPost(title, params);
+    const resultFilename = await createPost(title, content, images, textToCover, scheduledPublishTime);
     return formatForMCP(
       {
         filename: resultFilename,
-        title,
         isUpdate,
-        message: `笔记已${isUpdate ? '更新' : '创建'}: ${resultFilename}`,
+        title
       },
       () => `✅ 笔记已${isUpdate ? '更新' : '创建'}: ${resultFilename}\n标题: ${title}`
     );
@@ -326,9 +315,9 @@ export async function handleGenerateCover(title: string, templateId: string = '1
       return formatErrorForMCP(new Error('标题是必需的且不能为空'));
     }
     // 使用缓存目录作为输出目录
-    const imagePath = await generateCoverTitleOnly(title, templateId, COVER_IMAGES_DIR);
+    const imagePath = await generateCover(title, COVER_IMAGES_DIR, templateId, true);
     // 获取文件名
-    const filename = imagePath.split(/[/\\]/).pop() || '';
+    const filename = imagePath[0].split(/[/\\]/).pop() || '';
     // 返回相对路径（相对于封面图片目录）
     const relativePath = `covers/${filename}`;
     return formatForMCP(
@@ -339,6 +328,26 @@ export async function handleGenerateCover(title: string, templateId: string = '1
         message: `封面已生成: ${relativePath}`,
       },
       () => `✅ 封面已生成: ${relativePath}\n完整路径: ${imagePath}`
+    );
+  } catch (error) {
+    return formatErrorForMCP(error);
+  }
+}
+
+
+// 保存范文
+export async function handleSaveExample(filename: string, content: string) {
+  try {
+    if (!filename) {
+      return formatErrorForMCP(new Error('文件名是必需的'));
+    }
+    if (!content) {
+      return formatErrorForMCP(new Error('内容是必需的'));
+    }
+    const result = saveExample(filename, content);
+    return formatForMCP(
+      result,
+      () => `✅ ${result.message}`
     );
   } catch (error) {
     return formatErrorForMCP(error);

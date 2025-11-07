@@ -8,8 +8,9 @@ import { getOperationData } from './core/get_operation_data.js';
 import { getNoteDetail } from './core/get_note_detail.js';
 import { getMyProfile } from './core/get_my_profile.js';
 import { getRecentNotes } from './core/get_recent_notes.js';
-import { postNote, loadPostFromQueue, selectPostInteractively } from './core/post.js';
+import { postNote, selectPostInteractively } from './core/post.js';
 import { listQueuePostCommand } from './core/list_available_post.js';
+import { createPost } from './core/writePost.js';
 import { serializeOperationData } from './types/operationData.js';
 import { serializeUserProfile } from './types/userProfile.js';
 import { serializeNote, serializeNoteDetail } from './types/note.js';
@@ -110,7 +111,6 @@ const commands: Record<string, () => Promise<void>> = {
     }
   },
   'post': async () => {
-    // 1. 检查是否提供了文件名参数，如果没有则交互式选择
     let queueFilename: string;
     if (commandArgs.length === 0 || !commandArgs[0]) {
       try {
@@ -120,20 +120,10 @@ const commands: Record<string, () => Promise<void>> = {
       }
     } else {
       const filename = commandArgs[0];
-      // 确保文件名以 .json 结尾
       queueFilename = filename.endsWith('.json') ? filename : `${filename}.json`;
     }
-    // 2. 从缓存目录读取发帖队列文件
-    let params;
     try {
-      params = loadPostFromQueue(queueFilename);
-    } catch (error) {
-      console.error('❌ 读取发帖队列文件失败:', error instanceof Error ? error.message : error);
-      process.exit(1);
-    }
-    // 3. 发布笔记（传入队列文件名，成功后自动移动文件）
-    try {
-      const result = await postNote(params, queueFilename);
+      const result = await postNote(queueFilename);
       if (result.success) {
         console.error(`\n✅ ${result.message}`);
         if (result.noteUrl) {
@@ -150,7 +140,7 @@ const commands: Record<string, () => Promise<void>> = {
       process.exit(1);
     }
   },
-  'list-available-post': async () => {
+  'list-post': async () => {
     listQueuePostCommand();
   },
   'setup-mcp': async () => {
@@ -162,6 +152,50 @@ const commands: Record<string, () => Promise<void>> = {
       targets.push('cursor');
     }
     await setupMCP(targets.length > 0 ? targets : undefined);
+  },
+'write-post': async () => {
+    // 解析命令行参数
+    let title = '';
+    let content = '';
+    const images: string[] = [];
+    let textToCover = false;
+    let scheduledPublishTime: string | undefined;
+    
+    // 解析参数
+    for (let i = 0; i < commandArgs.length; i++) {
+      const arg = commandArgs[i];
+      if (arg === '--title' && i + 1 < commandArgs.length) {
+        title = commandArgs[++i];
+      } else if (arg === '--content' && i + 1 < commandArgs.length) {
+        content = commandArgs[++i];
+      } else if (arg === '--image' && i + 1 < commandArgs.length) {
+        images.push(commandArgs[++i]);
+      } else if (arg === '--text-to-cover') {
+        textToCover = true;
+      } else if (arg === '--scheduled-time' && i + 1 < commandArgs.length) {
+        scheduledPublishTime = commandArgs[++i];
+      } else if (arg === '--help' || arg === '-h') {
+        console.error('使用方法: xhs write-post --title "标题" --content "内容" [--text-to-cover] [--image 图片路径1] [--image 图片路径2] [--scheduled-time "YYYY-MM-DD HH:MM"]');
+        console.error('示例:');
+        console.error('  xhs write-post --title "我的笔记" --content "这是笔记内容" --image ./1.jpg --image ./2.png');
+        console.error('  xhs write-post --title "我的笔记" --content "这是笔记内容" --text-to-cover');
+        console.error('  xhs write-post --title "我的笔记" --content "这是笔记内容" --text-to-cover --image ./1.jpg --scheduled-time "2024-01-01 10:00"');
+        return;
+      }
+    }
+    try {
+      const filename =await createPost(
+        title,
+        content,
+        images.length > 0 ? images : undefined,
+        textToCover,
+        scheduledPublishTime
+      );
+      console.error(`✅ 笔记已成功创建: ${filename}`);
+    } catch (error) {
+      console.error('❌ 创建笔记失败:', error instanceof Error ? error.message : error);
+      process.exit(1);
+    }
   },
 };
 
@@ -177,8 +211,9 @@ function showHelp() {
     { cmd: 'get-operation-data', desc: '获取近期笔记运营数据' },
     { cmd: 'get-recent-notes', desc: '获取近期笔记列表' },
     { cmd: 'get-note-detail', desc: '根据笔记ID获取笔记详情' },
+    { cmd: 'write-post', desc: '创建新的待发布笔记' },
     { cmd: 'post', desc: '发布笔记' },
-    { cmd: 'list-available-post', desc: '列出所有待发布的笔记' },
+    { cmd: 'list-post', desc: '列出所有待发布的笔记' },
     { cmd: 'setup-mcp', desc: '配置 MCP 服务器（Claude Desktop / Cursor）' },
   ];
   const maxCmdLength = Math.max(...commandList.map(item => item.cmd.length));
@@ -188,7 +223,6 @@ function showHelp() {
     console.error(`  ${cmd}${padding}  - ${desc}`);
   }
 }
-
 
 
 // 主函数

@@ -7,7 +7,7 @@
 import { existsSync, readFileSync, readdirSync, statSync } from 'fs';
 import { join } from 'path';
 import { POST_QUEUE_DIR } from '../config.js';
-import { PostNoteParams } from './post.js';
+import { PostNoteParams } from '../types/post.js';
 
 
 // 列出所有待发布的帖子

@@ -45,10 +45,15 @@ function findChromePath(): string | null {
 }
 
 
+// 获取统一的用户数据目录（确保所有浏览器实例共享cookie）
+export function getUserDataDir(): string {
+  return join(homedir(), '.xhs-mcp', 'browser-data');
+}
+
 // 启动浏览器（支持无头模式）
 export async function launchBrowser(headless: boolean = true, extraArgs: string[] = []): Promise<Browser> {
   const chromePath = findChromePath();
-  const userDataDir = join(homedir(), '.xhs-mcp', 'browser-data');
+  const userDataDir = getUserDataDir();
   if (!existsSync(userDataDir)) {
     mkdirSync(userDataDir, { recursive: true });
   }
@@ -61,6 +66,15 @@ export async function launchBrowser(headless: boolean = true, extraArgs: string[
     '--disable-blink-features=AutomationControlled',
     '--disable-restore-session-state',
     '--disable-session-crashed-bubble',
+    '--disable-infobars',
+    '--no-first-run',
+    '--no-default-browser-check',
+    '--disable-background-networking',
+    '--disable-sync',
+    '--disable-translate',
+    '--disable-features=TranslateUI',
+    '--disable-ipc-flooding-protection',
+    '--enable-features=NetworkService,NetworkServiceInProcess',
   ];
   // 如果找到了 Chrome 路径，使用它；否则让 Puppeteer 自动查找
   const launchOptions: any = {
@@ -68,6 +82,10 @@ export async function launchBrowser(headless: boolean = true, extraArgs: string[
     userDataDir: userDataDir,
     args: [...baseArgs, ...extraArgs],
     defaultViewport: headless ? { width: 1280, height: 720 } : null,
+    // 确保浏览器进程正确关闭，以便保存cookie
+    handleSIGINT: true,
+    handleSIGTERM: true,
+    handleSIGHUP: true,
   };
   if (chromePath) {
     launchOptions.executablePath = chromePath;

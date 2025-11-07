@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1080, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>封面生成</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      width: 1080px;
+      height: 1620px;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      width: 1080px;
+      height: 1620px;
+      background: #F4F0ED;
+      font-family: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', Arial, sans-serif;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .quote {
+      position: absolute;
+      top: 80px;
+      left: 80px;
+      opacity: 0.15;
+      width: 200px;
+      height: 200px;
+      z-index: 0;
+    }
+
+    .quote svg {
+      width: 100%;
+      height: 100%;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.5;
+      color: #333333;
+    }
+
+    .title {
+      width: 100%;
+      max-width: 900px;
+      text-align: center;
+      font-size: 120px;
+      font-weight: 600;
+      color: rgba(51, 51, 51, 0.8);
+      line-height: 1.5;
+      word-break: break-word;
+      overflow-wrap: break-word;
+      margin: 0 auto;
+      position: relative;
+      z-index: 1;
+      padding: 60px;
+      display: block;
+      min-height: 50%;
+    }
+
+    .title strong {
+      font-weight: 900;
+    }
+
+    .title u,
+    .title .marker {
+      position: relative;
+      text-decoration: none;
+      z-index: 1;
+    }
+
+    .title u::after,
+    .title .marker::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 30px;
+      background: rgba(255, 235, 59, 0.6);
+      border-radius: 8px;
+      z-index: -1;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="quote">
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-quote-icon lucide-quote"
+      transform="scale(-1, 1) translate(-24, 0)">
+      <path
+        d="M16 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z" />
+      <path
+        d="M5 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z" />
+    </svg>
+  </div>
+  <div class="title" id="cover-title"></div>
+</body>
+<script>
+  function parseMarkdown(text) {
+    text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    text = text.replace(/__(.+?)__/g, '<span class="marker">$1</span>');
+    text = text.replace(/<u>(.+?)<\/u>/g, '<span class="marker">$1</span>');
+    return text;
+  }
+  const params = new URLSearchParams(window.location.search);
+  const title = params.get('title') || '小红书封面';
+  document.getElementById('cover-title').innerHTML = parseMarkdown(title);
+</script>
+
+</html>

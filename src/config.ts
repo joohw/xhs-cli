@@ -19,6 +19,8 @@ export const POST_QUEUE_DIR = join(CACHE_DIR, 'post', 'queue');
 export const POST_POSTED_DIR = join(CACHE_DIR, 'post', 'posted');
 // 封面图片输出目录
 export const COVER_IMAGES_DIR = join(CACHE_DIR, 'post', 'images', 'covers');
+// 范文目录
+export const EXAMPLES_DIR = join(CACHE_DIR, 'examples');
 
 
 

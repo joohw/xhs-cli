@@ -2,7 +2,7 @@
 import satori from 'satori';
 import { Resvg } from '@resvg/resvg-js';
 import { writeFileSync, existsSync, mkdirSync } from 'fs';
-import { getCoverTemplate } from './templates';
+import { getCoverTemplate } from './templates.js';
 import { join } from 'path';
 import { loadAllFonts } from './fonts.js';
 import { resetHighlightColor } from './utils/markdown.js';

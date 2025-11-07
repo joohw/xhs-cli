@@ -96,13 +96,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             scheduledPublishTime: (args as any)?.scheduledPublishTime,
           }
         );
-
       case 'xhs_generate_cover':
         return await handleGenerateCover(
           (args as any)?.title,
           (args as any)?.templateId || '1'
         );
-
       default:
         throw new Error(`未知的工具: ${name}`);
     }

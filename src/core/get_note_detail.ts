@@ -3,7 +3,7 @@
 
 
 import { withLoggedInPage } from '../browser/browser.js';
-import type { Page } from 'puppeteer';
+import type { Page } from 'puppeteer-core';
 import { Note } from '../types/note.js';
 import { saveToCache, loadFromCache } from '../utils/cache.js';
 

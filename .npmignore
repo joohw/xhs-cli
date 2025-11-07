@@ -12,6 +12,7 @@ test/
 *.test.ts
 *.spec.ts
 TEST_MCP.md
+src/test/
 
 # 文档（发布时会自动将 README.npm.md 复制为 README.md）
 POSTING_GUIDELINES.md

@@ -1,7 +1,7 @@
-// 使用 Puppeteer 实现小红书登录
+// 使用 puppeteer-core 实现小红书登录
 
 
-import { Browser, Page } from 'puppeteer';
+import { Browser, Page } from 'puppeteer-core';
 import { launchBrowser } from '../browser/browser.js';
 import { getUserProfile } from './get_my_profile.js';
 import { validateUserProfile, UserProfile } from '../types/userProfile.js';

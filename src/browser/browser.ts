@@ -1,5 +1,5 @@
 // 浏览器工具模块 - 支持无头模式访问
-import puppeteer, { Browser, Page } from 'puppeteer';
+import puppeteer, { Browser, Page } from 'puppeteer-core';
 import { existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { homedir, platform } from 'os';

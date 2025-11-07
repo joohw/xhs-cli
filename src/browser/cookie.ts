@@ -1,5 +1,5 @@
 // Cookie 管理工具
-import type { Page } from 'puppeteer';
+import type { Page } from 'puppeteer-core';
 
 
 // 检查 cookie 是否过期（从 puppeteer page 读取）

@@ -1,8 +1,14 @@
 // 字体管理系统 - 简单加载所有字体，让 satori 自己管理
 import { readFileSync, existsSync, readdirSync, mkdirSync } from 'fs';
-import { join } from 'path';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 // @ts-ignore
 import opentype from 'opentype.js';
+
+
+// 获取当前文件所在目录
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 
 // 字体配置类型
@@ -14,15 +20,14 @@ export interface FontConfig {
 }
 
 
-// 加载所有可用字体（自动扫描 public/fonts 目录下的所有 TTF 文件）
+// 加载所有可用字体（自动扫描 fonts.ts 同目录下的 fonts 文件夹中的所有 TTF 文件）
 export async function loadAllFonts(): Promise<FontConfig[]> {
   const fonts: FontConfig[] = [];
-  const projectRoot = process.cwd();
-  const fontsDir = join(projectRoot, 'public', 'fonts');
+  // 字体目录位于 fonts.ts 同目录下的 fonts 文件夹
+  const fontsDir = join(__dirname, 'fonts');
   
   // 确保字体目录存在
   if (!existsSync(fontsDir)) {
-    mkdirSync(fontsDir, { recursive: true });
     throw new Error(`字体目录不存在: ${fontsDir}\n请将 TTF 格式的字体文件放入该目录`);
   }
   
@@ -30,7 +35,7 @@ export async function loadAllFonts(): Promise<FontConfig[]> {
   const files = readdirSync(fontsDir).filter(file => file.toLowerCase().endsWith('.ttf'));
   
   if (files.length === 0) {
-    throw new Error('未找到任何 TTF 字体文件，请确保 public/fonts 目录中有字体文件');
+    throw new Error(`未找到任何 TTF 字体文件，请确保 ${fontsDir} 目录中有字体文件`);
   }
   
   // 加载每个字体文件
@@ -94,8 +99,8 @@ export async function loadAllFonts(): Promise<FontConfig[]> {
 // 获取所有可用字体名称列表
 export function getAvailableFontNames(): string[] {
   const fontNames = new Set<string>();
-  const projectRoot = process.cwd();
-  const fontsDir = join(projectRoot, 'public', 'fonts');
+  // 字体目录位于 fonts.ts 同目录下的 fonts 文件夹
+  const fontsDir = join(__dirname, 'fonts');
   
   if (!existsSync(fontsDir)) {
     return [];

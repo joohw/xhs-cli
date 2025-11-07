@@ -1,6 +1,6 @@
 // src/cli/get_overall_data.ts
 import { withLoggedInPage } from '../browser/browser.js';
-import type { Page } from 'puppeteer';
+import type { Page } from 'puppeteer-core';
 import { UserRecentOperationData } from '../types/operationData.js';
 import { saveToCache, loadFromCache } from '../utils/cache.js';
 import { checkLoginState } from './check_login_state.js';

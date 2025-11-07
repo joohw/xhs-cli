@@ -1,5 +1,5 @@
 // 检查登录状态
-import { Browser } from 'puppeteer';
+import { Browser } from 'puppeteer-core';
 import { launchBrowser } from '../browser/browser.js';
 import { isCookieExpired, getCookieTTL } from '../browser/cookie.js';
 

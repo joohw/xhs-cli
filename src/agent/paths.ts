@@ -1,10 +1,11 @@
 import { existsSync } from 'fs';
-import { dirname, join } from 'path';
+import { dirname, join, resolve } from 'path';
 import { fileURLToPath } from 'url';
 
 /** 包根目录（开发时为仓库根；全局安装时为 node_modules/xhs-cli） */
 export function getPackageRoot(): string {
-  return dirname(fileURLToPath(new URL('../../', import.meta.url)));
+  // 必须用 resolve：在 Windows 上 `dirname(fileURLToPath(new URL('../../'))` 会因尾部 `\` 多退一级目录
+  return resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 }
 
 /** boot.md 位于 `src/agent/boot.md`；构建后复制到 `dist/agent/boot.md` */

@@ -19,6 +19,7 @@
     "copy:assets": "node -e \"const fs=require('fs');const path=require('path');function copyDir(src,dest){if(!fs.existsSync(dest))fs.mkdirSync(dest,{recursive:true});const entries=fs.readdirSync(src,{withFileTypes:true});for(const entry of entries){const srcPath=path.join(src,entry.name);const destPath=path.join(dest,entry.name);if(entry.isDirectory()){copyDir(srcPath,destPath);}else{fs.copyFileSync(srcPath,destPath);}}}copyDir('src/prompts','dist/prompts');copyDir('src/templates','dist/templates');const da=path.join('dist','agent');if(!fs.existsSync(da))fs.mkdirSync(da,{recursive:true});const b=path.join('src','agent','boot.md');if(fs.existsSync(b))fs.copyFileSync(b,path.join(da,'boot.md'));\"",
     "postpublish": "git checkout README.md",
     "dev": "tsx src/cli.ts",
+    "start": "tsx src/cli.ts",
     "xhs": "tsx src/cli.ts",
     "preview": "tsx src/scripts/preview_templates.ts",
     "test": "tsx src/test/_test.ts",

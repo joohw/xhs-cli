@@ -1,17 +1,27 @@
 # 开发与测试 CLI
 
+## 若提示 `Missing script: "dev"`
+
+说明当前目录下的 **`package.json` 里没有 `dev` 脚本**。请确认：
+
+1. 在仓库根目录（与 `package.json` 同级）执行命令；
+2. 已保存/拉取最新代码（`scripts` 里应有 `"dev": "tsx src/cli.ts"`）；
+3. 可改用等价命令：**`npm start`** 或 **`npm run xhs`**（同样跑 `tsx src/cli.ts`）。
+
+---
+
 ## 开发模式跑 CLI（无需先 build）
 
-仓库已配置脚本，直接用 **tsx** 跑源码（**`dev` 与 `xhs` 等价**）：
+仓库已配置脚本，直接用 **tsx** 跑源码（**`dev` / `start` / `xhs` 等价**）：
 
 ```bash
-# 在仓库根目录（推荐习惯用 dev）
+# 在仓库根目录
 npm run dev -- help
+npm start -- help          # 与 dev 相同
+npm run xhs -- help
+
 npm run dev -- login
 npm run dev -- agent "检查登录状态"
-
-# 与上面相同
-npm run xhs -- help
 ```
 
 注意：`npm run` 后面必须加 **`--`**，后面的参数才会传给 CLI。

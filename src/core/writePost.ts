@@ -3,8 +3,7 @@
 
 import { existsSync, mkdirSync, writeFileSync, readFileSync, copyFileSync, readdirSync, unlinkSync, statSync } from 'fs';
 import { join, extname } from 'path';
-import { homedir } from 'os';
-import { POST_QUEUE_DIR } from '../config.js';
+import { POST_QUEUE_DIR, getPostImagesDir, ensureAppDataLayout } from '../config.js';
 import { titleToFilename } from '../utils/titleToFilename.js';
 
 
@@ -36,6 +35,7 @@ export async function createPost(
     if (images && images.length > 9) {
         throw new Error('图片数量不能超过9张');
     }
+    ensureAppDataLayout();
     if (!existsSync(POST_QUEUE_DIR)) {
         mkdirSync(POST_QUEUE_DIR, { recursive: true });
     }
@@ -105,13 +105,9 @@ export async function createPost(
 }
 
 
-// 获取post对应的图片目录
+// 获取 post 对应的图片目录
 function getPostImageDir(postName: string): string {
-    const postImagesDir = join(homedir(), '.xhs-cli', 'post', 'images', postName);
-    if (!existsSync(postImagesDir)) {
-        mkdirSync(postImagesDir, { recursive: true });
-    }
-    return postImagesDir;
+    return getPostImagesDir(postName);
 }
 
 

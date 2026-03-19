@@ -35,9 +35,9 @@
 
 ### 1. 查看范文（必须）
 
-**重要**：在开始写作前，必须先查看范文参考。通过资源查看范文
-- 查看 MCP 资源列表中的 `xhs://examples/` 资源，选择相关范文进行参考
-- 直接读取资源 URI：`xhs://examples/{filename}`
+**重要**：在开始写作前，必须先查看范文参考。
+- 范文为纯文本 `.txt` 文件，放在 **Agent 沙盒** 下（建议目录 `sandbox/examples/`），即：`~/.xhs-cli/.cache/sandbox/examples/`（Windows：`%USERPROFILE%\.xhs-cli\.cache\sandbox\examples\`）
+- 使用 **`xhs_sandbox_list_dir`**（如 `path: "examples"`）与 **`xhs_sandbox_read_file`**（如 `path: "examples/某范文.txt"`）浏览与读取；更新范例用 **`xhs_sandbox_write_file`**
 
 
 **范文使用原则**：

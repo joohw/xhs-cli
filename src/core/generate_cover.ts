@@ -1,60 +1,45 @@
-// src/core/writePost.ts
-// 核心功能：添加 post 到队列
+// src/core/generate_cover.ts
+// 为队列中的笔记生成封面图
 
-import { existsSync, mkdirSync, writeFileSync, readFileSync, copyFileSync, readdirSync, unlinkSync, statSync } from 'fs';
-import { join, extname } from 'path';
-import { homedir } from 'os';
-import { POST_QUEUE_DIR } from '../config.js';
+import { existsSync, copyFileSync } from 'fs';
+import { join } from 'path';
+import { POST_QUEUE_DIR, getPostImagesDir, ensureAppDataLayout } from '../config.js';
 import { generateCover } from '../Illustrate/generateCover.js';
-
-
-
 
 // 为指定的 post 生成封面图片
 export async function generateCoverForPost(queueFilename: string): Promise<boolean> {
-    const filename = queueFilename.endsWith('.txt') ? queueFilename : `${queueFilename}.txt`;
-    const queueFilePath = join(POST_QUEUE_DIR, filename);
-    if (!existsSync(queueFilePath)) {
-        throw new Error(`发帖队列文件不存在: ${filename}`);
+  ensureAppDataLayout();
+  const filename = queueFilename.endsWith('.txt') ? queueFilename : `${queueFilename}.txt`;
+  const queueFilePath = join(POST_QUEUE_DIR, filename);
+  if (!existsSync(queueFilePath)) {
+    throw new Error(`发帖队列文件不存在: ${filename}`);
+  }
+  const title = filename.replace(/\.txt$/, '');
+  if (!title) {
+    throw new Error(`Post ${filename} 没有标题，无法生成封面`);
+  }
+  const postName = getPostNameFromFilename(filename);
+  const postImageDir = getPostImageDir(postName);
+  try {
+    console.error(`🎨 正在为 post "${postName}" 生成封面图片...`);
+    const coverPaths = await generateCover(title, postImageDir, '1', true);
+    if (coverPaths && coverPaths.length > 0) {
+      const targetPath = join(postImageDir, `0.png`);
+      copyFileSync(coverPaths[0], targetPath);
+      console.error(`✅ 封面图片已生成: ${targetPath}`);
+      return true;
     }
-    // 从文件名提取标题（去掉 .txt 后缀）
-    const title = filename.replace(/\.txt$/, '');
-    if (!title) {
-        throw new Error(`Post ${filename} 没有标题，无法生成封面`);
-    }
-    // 获取 post 名称和图片目录
-    const postName = getPostNameFromFilename(filename);
-    const postImageDir = getPostImageDir(postName);
-    // 生成封面图片
-    try {
-        console.error(`🎨 正在为 post "${postName}" 生成封面图片...`);
-        const coverPaths = await generateCover(title, postImageDir, '1', true);
-        if (coverPaths && coverPaths.length > 0) {
-            // 重命名为 0.png
-            const targetPath = join(postImageDir, `0.png`);
-            copyFileSync(coverPaths[0], targetPath);
-            console.error(`✅ 封面图片已生成: ${targetPath}`);
-            return true;
-        }
-        throw new Error('封面图片生成失败：未返回图片路径');
-    } catch (error) {
-        console.error('❌ 封面图片生成失败:', error instanceof Error ? error.message : error);
-        throw error;
-    }
+    throw new Error('封面图片生成失败：未返回图片路径');
+  } catch (error) {
+    console.error('❌ 封面图片生成失败:', error instanceof Error ? error.message : error);
+    throw error;
+  }
 }
 
-
-// 获取post对应的图片目录
 function getPostImageDir(postName: string): string {
-    const postImagesDir = join(homedir(), '.xhs-cli', 'post', 'images', postName);
-    if (!existsSync(postImagesDir)) {
-        mkdirSync(postImagesDir, { recursive: true });
-    }
-    return postImagesDir;
+  return getPostImagesDir(postName);
 }
 
-
-// 从文件名中提取post名称（去掉.txt后缀）
 function getPostNameFromFilename(filename: string): string {
-    return filename.replace(/\.txt$/, '');
+  return filename.replace(/\.txt$/, '');
 }

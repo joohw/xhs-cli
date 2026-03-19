@@ -1,32 +1,30 @@
 {
   "name": "xhs-cli",
   "version": "1.0.9",
-  "description": "面向个人创作者的小红书 CLI 工具和 MCP 服务器 - 帮助创作者管理、分析和发布小红书内容，支持自动生成封面图片",
+  "description": "面向个人创作者的小红书 CLI 工具（含 pi-agent；boot.md 为角色与数据约定）- 管理、分析与发布内容，支持封面生成",
   "type": "module",
-  "main": "dist/mcp/index.js",
-  "types": "dist/index.d.ts",
+  "main": "dist/cli.js",
+  "types": "dist/cli.d.ts",
   "bin": {
     "xhs": "dist/cli.js"
   },
   "files": [
     "dist",
     "README.md",
+    "AGENTS.md",
     "LICENSE"
   ],
   "scripts": {
     "build": "tsc && npm run copy:assets",
-    "copy:assets": "node -e \"const fs=require('fs');const path=require('path');function copyDir(src,dest){if(!fs.existsSync(dest))fs.mkdirSync(dest,{recursive:true});const entries=fs.readdirSync(src,{withFileTypes:true});for(const entry of entries){const srcPath=path.join(src,entry.name);const destPath=path.join(dest,entry.name);if(entry.isDirectory()){copyDir(srcPath,destPath);}else{fs.copyFileSync(srcPath,destPath);}}}copyDir('src/prompts','dist/prompts');copyDir('src/templates','dist/templates');\"",
+    "copy:assets": "node -e \"const fs=require('fs');const path=require('path');function copyDir(src,dest){if(!fs.existsSync(dest))fs.mkdirSync(dest,{recursive:true});const entries=fs.readdirSync(src,{withFileTypes:true});for(const entry of entries){const srcPath=path.join(src,entry.name);const destPath=path.join(dest,entry.name);if(entry.isDirectory()){copyDir(srcPath,destPath);}else{fs.copyFileSync(srcPath,destPath);}}}copyDir('src/prompts','dist/prompts');copyDir('src/templates','dist/templates');const da=path.join('dist','agent');if(!fs.existsSync(da))fs.mkdirSync(da,{recursive:true});const b=path.join('src','agent','boot.md');if(fs.existsSync(b))fs.copyFileSync(b,path.join(da,'boot.md'));\"",
     "postpublish": "git checkout README.md",
+    "dev": "tsx src/cli.ts",
     "xhs": "tsx src/cli.ts",
-    "mcp": "node dist/mcp/index.js",
-    "setup": "tsx src/scripts/setup_mcp.ts",
     "preview": "tsx src/scripts/preview_templates.ts",
     "test": "tsx src/test/_test.ts",
     "test:cover": "tsx src/test/test_cover_generation.ts"
   },
   "keywords": [
-    "mcp",
-    "model-context-protocol",
     "xiaohongshu",
     "xhs",
     "小红书",
@@ -49,11 +47,13 @@
   },
   "homepage": "https://github.com/joohw/xhs-cli#readme",
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=20.0.0"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.0.4",
+    "@mariozechner/pi-agent-core": "^0.60.0",
+    "@mariozechner/pi-ai": "^0.60.0",
     "@resvg/resvg-js": "^2.5.1",
+    "@sinclair/typebox": "^0.34.48",
     "@types/html2canvas": "^0.5.35",
     "express": "^5.1.0",
     "html2canvas": "^1.4.1",

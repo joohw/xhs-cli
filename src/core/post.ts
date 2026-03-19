@@ -6,9 +6,8 @@
 import { launchBrowser } from '../browser/browser.js';
 import { existsSync, readFileSync, mkdirSync, unlinkSync, writeFileSync, readdirSync } from 'fs';
 import { join, extname } from 'path';
-import { homedir } from 'os';
 import { createInterface } from 'readline';
-import { POST_QUEUE_DIR, POST_POSTED_DIR } from '../config.js';
+import { POST_QUEUE_DIR, POST_POSTED_DIR, getPostImagesDir, ensureAppDataLayout } from '../config.js';
 import { listQueuePost } from './list_available_post.js';
 import { PostNoteParams } from '../types/post.js';
 
@@ -69,7 +68,7 @@ function validatePostImages(queueFilename: string): void {
     const postName = getPostNameFromFilename(queueFilename);
     const imagePaths = findPostImages(postName);
     if (imagePaths.length === 0) {
-        throw new Error(`未找到笔记"${postName}"对应的图片。请确保在 ~/.xhs-cli/post/images/${postName}/ 目录下放置至少一张图片（如1.png、2.jpg等）`);
+        throw new Error(`未找到笔记"${postName}"对应的图片。请确保在 ~/.xhs-cli/.cache/post/images/${postName}/ 目录下放置至少一张图片（如1.png、2.jpg等）`);
     }
     // 验证图片数量（小红书通常支持1-9张图片）
     if (imagePaths.length > 9) {
@@ -162,13 +161,9 @@ function getPostNameFromFilename(filename: string): string {
 }
 
 
-// 获取post对应的图片目录
+// 获取 post 对应的图片目录
 function getPostImageDir(postName: string): string {
-    const postImagesDir = join(homedir(), '.xhs-cli', 'post', 'images', postName);
-    if (!existsSync(postImagesDir)) {
-        mkdirSync(postImagesDir, { recursive: true });
-    }
-    return postImagesDir;
+    return getPostImagesDir(postName);
 }
 
 
@@ -214,6 +209,7 @@ function findPostImages(postName: string): string[] {
 
 // 核心函数：发布笔记（返回结果数据）- 使用非无头模式
 export async function postNote(queueFilename: string): Promise<PostNoteResult> {
+    ensureAppDataLayout();
     const params = loadPostFromQueue(queueFilename);
     validatePostParams(params);
     validatePostImages(queueFilename);

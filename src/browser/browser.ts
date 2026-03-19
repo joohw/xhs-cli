@@ -3,6 +3,7 @@ import puppeteer, { Browser, Page } from 'puppeteer-core';
 import { existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { homedir, platform } from 'os';
+import { BROWSER_USER_DATA_DIR, ensureAppDataLayout } from '../config.js';
 
 
 // 查找系统 Chrome 路径（跨平台支持）
@@ -44,9 +45,10 @@ function findChromePath(): string | null {
 }
 
 
-// 获取统一的用户数据目录（确保所有浏览器实例共享cookie）
+// 获取统一的用户数据目录（确保所有浏览器实例共享 cookie；位于 ~/.xhs-cli/.cache/browser-data）
 export function getUserDataDir(): string {
-  return join(homedir(), '.xhs-mcp', 'browser-data');
+  ensureAppDataLayout();
+  return BROWSER_USER_DATA_DIR;
 }
 
 // 启动浏览器（支持无头模式）

@@ -3,34 +3,33 @@
 
 Be brief. Focus on concrete, repository-specific patterns and commands so humans and automated agents can be productive immediately.
 
-- Project type: TypeScript CLI + MCP server (Node >=18). Source is under `src/`. Build produces `dist/`.
+- Project type: TypeScript CLI + optional pi-agent (Node >=20). Source is under `src/`. Build produces `dist/`.
 - Entry points:
-  - CLI: `src/cli.ts` (bin target `dist/cli.js`, npm script `xhs` runs `tsx src/cli.ts`).
-  - MCP server: `src/mcp/index.ts` → built output `dist/mcp/index.js` (npm script `mcp` runs `node dist/mcp/index.js`).
+  - CLI: `src/cli.ts` → `runCli()` in `src/agent/cliRouter.ts` (bin `dist/cli.js`, npm script `xhs` runs `tsx src/cli.ts`).
+  - Agent mode: `xhs agent "<prompt>"` merges `src/agent/boot.md` (→ `dist/agent/boot.md`) into system prompt for role/data/sandbox conventions; tools come from `buildXhsAgentTools()` in `src/agent/xhsTools.ts` (not duplicated in boot.md).
 
 - Key responsibilities and patterns:
   - Browser automation uses `puppeteer-core` and a helper in `src/browser/browser.ts`. It prefers a system Chrome/Chromium binary (see `findChromePath`) and honors `CHROME_PATH` environment var.
-  - Persistent browser state is stored under the user home dir: `~/.xhs-mcp/browser-data` (userDataDir). Login cookies are saved in `src/config.ts` paths (see `COOKIE_FILE`, `CACHE_DIR`).
-  - Post queue is file-based: queue files are JSON under `POST_QUEUE_DIR` (see `src/config.ts`). Functions that read/write queue: `src/core/post.ts`, `src/core/writePost.ts`.
+  - All app-generated data lives under `~/.xhs-cli/.cache/` (`CACHE_DIR` in `src/config.ts`). Browser userDataDir: `~/.xhs-cli/.cache/browser-data`.
+  - Post queue is file-based under `POST_QUEUE_DIR` (see `src/config.ts`). Functions that read/write queue: `src/core/post.ts`, `src/core/writePost.ts`.
   - Cover generation uses `src/Illustrate/generateCover.ts` with `satori` + `@resvg/resvg-js` and fonts under `src/Illustrate/fonts` (copied by build script).
-  - MCP tooling: `src/mcp/*` exposes tools/handlers for external AI clients. Tool names are registered in `src/mcp/index.ts` and implemented in `src/mcp/handlers.ts`.
 
 - Typical developer workflows (commands)
-  - Local quick-run CLI (no build): `npm run xhs` (runs `tsx src/cli.ts`).
+  - Local quick-run CLI (no build): `npm run dev` or `npm run xhs` (both run `tsx src/cli.ts`; pass args after `--`).
   - Build (compile + copy fonts): `npm run build` (runs `tsc` then copies fonts into `dist`).
-  - Run MCP server (after build): `npm run mcp` (runs `node dist/mcp/index.js`).
-  - Setup MCP helper (dev): `npm run setup` runs `tsx src/scripts/setup_mcp.ts`.
   - Tests: `npm run test` and `npm run test:cover` run TypeScript test scripts via tsx.
 
 - Environment and runtime notes an agent must respect
   - Puppeteer is `puppeteer-core`; maintainers expect system Chrome. Set `CHROME_PATH` to avoid missing-browser errors, or set `PUPPETEER_SKIP_DOWNLOAD=true` when installing to prevent Chromium downloads.
-  - Persistent caches live in `~/.xhs-cli` (see `src/config.ts`), including `post` queue and `cookies` — don't delete or rewrite without preserving expected JSON shapes.
+  - Persistent caches live under `~/.xhs-cli/.cache/` (see `src/config.ts`), including `post` queue and `cookies` — don't delete or rewrite without preserving expected JSON shapes. Call `ensureAppDataLayout()` before relying on paths when adding new entry points.
   - Browser automation often uses non-headless mode for user-driven login; many flows intentionally keep the browser open so humans can finish actions.
 
 - File and API conventions to follow
   - Commands in `src/cli.ts` map directly to functions in `src/core/*`. When adding commands, update both the CLI mapping and the exported helper in the corresponding core module.
   - Queue files: JSON must contain `content` string. `loadPostFromQueue` validates `content` — keep that contract.
   - When modifying browser launch options, preserve existing userDataDir usage — changing it will break stored cookies and login flows for users.
+
+- AI assistants: no MCP. **Tools**: `src/agent/xhsTools.ts` + `src/agent/toolImplementations.ts`. **Boot text** (`src/agent/boot.md`): role, cache paths, sandbox/example workflow—no tool table. See `AGENTS.md`.
 
 - Concrete examples to reference in edits
   - Add a CLI command: mirror pattern in `src/cli.ts` and implement logic in `src/core/your_new_feature.ts` exporting the function used by the command.
@@ -39,4 +38,4 @@ Be brief. Focus on concrete, repository-specific patterns and commands so humans
 
 - Safety: Do not hardcode credentials or write code that exfiltrates user files. Any change touching cookies or user data must be explicit and reversible.
 
-If anything here is unclear or you want the file to include additional snippets (example CLI command, or a short PR checklist), tell me which area to expand. 
+If anything here is unclear or you want the file to include additional snippets (example CLI command, or a short PR checklist), tell me which area to expand.

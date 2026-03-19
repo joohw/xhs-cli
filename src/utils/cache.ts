@@ -3,7 +3,7 @@
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync, statSync } from 'fs';
 import { join } from 'path';
-import { CACHE_DIR } from '../config.js';
+import { CACHE_DIR, ensureAppDataLayout } from '../config.js';
 
 
 // 缓存数据包装类型
@@ -13,11 +13,9 @@ interface CachedData<T> {
 }
 
 
-// 确保缓存目录存在
+// 确保缓存根目录存在（~/.xhs-cli/.cache）
 export function ensureCacheDir(): void {
-  if (!existsSync(CACHE_DIR)) {
-    mkdirSync(CACHE_DIR, { recursive: true });
-  }
+  ensureAppDataLayout();
 }
 
 

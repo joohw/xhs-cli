@@ -6,11 +6,12 @@
 
 import { existsSync, readFileSync, readdirSync, statSync } from 'fs';
 import { join } from 'path';
-import { POST_QUEUE_DIR } from '../config.js';
+import { POST_QUEUE_DIR, ensureAppDataLayout } from '../config.js';
 
 
 // 列出所有待发布的帖子
 export function listQueuePost(): Array<{ filename: string; title?: string; content: string; createdAt: Date; size: number }> {
+    ensureAppDataLayout();
     if (!existsSync(POST_QUEUE_DIR)) {
         return [];
     }

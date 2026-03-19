@@ -121,7 +121,7 @@ xhs list-post
 xhs
 ```
 
-运行不带参数会打印 **boot.md** 摘要；角色与数据约定见 [src/agent/boot.md](src/agent/boot.md)（工具列表以运行时注册为准）。
+仅在 **`xhs agent`** 时并入 LLM 系统提示；文件见 [src/agent/boot.md](src/agent/boot.md)。
 
 
 ## 与 AI 助手协作

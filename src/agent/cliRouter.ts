@@ -13,15 +13,29 @@ import {
   implGetMyProfile,
   implWritePost,
 } from './toolImplementations.js';
-import { loadBootMarkdown } from './loadBoot.js';
 import { runAgentSession } from './runAgentSession.js';
 
+/** 给人看的简要说明；`boot.md` 仅由 `xhs agent` 读入并作为 LLM system prompt，不在此输出 */
 function printHelp(): void {
-  const md = loadBootMarkdown();
-  const lines = md.split('\n');
-  const head = lines.slice(0, Math.min(55, lines.length)).join('\n');
-  console.error(head);
-  console.error('\n---\n子命令（脚本）: login | logout | check-login | get-* | write-post | post | list-post | agent\n');
+  console.error(`xhs-cli — 小红书 CLI
+
+用法:
+  xhs <子命令> [参数]
+  xhs agent "<自然语言任务>"   （需配置 LLM API Key，会加载 src/agent/boot.md 作为系统提示补充）
+
+账号与数据:
+  login | logout | check-login
+  get-my-profile | get-operation-data | get-recent-notes | get-note-detail <noteId>
+
+队列与发布:
+  write-post --title "…" --content "…" [--image 路径 …]
+  list-post | post [队列文件名]
+
+其它:
+  help   显示本帮助
+
+Agent 侧业务约定见源码包内 src/agent/boot.md（不通过本命令打印）。
+`);
 }
 
 async function handleWritePostCli(args: string[]): Promise<void> {

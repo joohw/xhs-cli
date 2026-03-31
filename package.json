@@ -1,7 +1,7 @@
 {
   "name": "xhs-cli",
-  "version": "1.0.9",
-  "description": "面向个人创作者的小红书 CLI：登录、数据、发帖队列与沙盒；自然语言 Agent 由外部宿主集成",
+  "version": "1.0.10",
+  "description": "小红书创作者命令行：登录、数据、已发笔记、发帖（标题/正文/图片）",
   "type": "module",
   "main": "dist/cli/index.js",
   "types": "dist/cli/index.d.ts",

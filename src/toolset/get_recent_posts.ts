@@ -1,5 +1,5 @@
 import type { Page, ElementHandle } from 'puppeteer-core';
-import { withLoggedInPage } from '../browser';
+import { withLoggedInPage } from '../browser/index.js';
 import { saveToCache, loadFromCache } from '../utils/cache.js';
 import { checkLoginState } from './check_login_state.js';
 
@@ -16,9 +16,8 @@ interface NoteRaw {
   coverImage: string;
 }
 
-function formatNote(note: NoteRaw, index: number): string {
+function formatNote(note: NoteRaw): string {
   return [
-    `--- 笔记 ${index + 1} ---`,
     `ID: ${note.noteId}`,
     `标题: ${note.title}`,
     `发布时间: ${note.publishTime}`,

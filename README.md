@@ -1,89 +1,101 @@
 # xhs-cli
 
-面向个人创作者的 **小红书命令行工具**：用子命令完成登录校验、创作者数据与笔记详情，以及**一次性参数发帖**（标题、正文、本地图片路径）。
+在终端里使用的小红书工具：**登录**、**检查登录**、**创作者指标**、**已发笔记列表**、**单篇笔记详情**，以及用**标题 + 正文 + 本地图片路径**在创作后台填表发帖（需本机 Chrome/Chromium）。
 
 ---
 
-## 环境要求
+## 依赖
 
-| 项目 | 说明 |
-|------|------|
-| Node.js | ≥ 20 |
-| 浏览器 | 需本机已安装 **Chrome 或 Chromium**（包内不自带 Chromium；Puppeteer 使用系统浏览器） |
+- **Node.js** 20 及以上  
+- **Chrome 或 Chromium**（不随包下载；由 Puppeteer 连接本机浏览器）
 
 ---
 
-## 安装
+## 安装与本地运行
+
+全局安装：
 
 ```bash
 npm install -g xhs-cli
 ```
 
-本地开发可将仓库链接为全局命令：
+从源码：
 
 ```bash
-git clone <本仓库 URL>
+git clone https://github.com/joohw/xhs-cli.git
 cd xhs-cli
 npm install
 npm run build
-npm link
+npm link          # 可选：全局可用 xhs
 ```
+
+构建产物入口为 `dist/cli/index.js`，等价于命令 **`xhs`**。
 
 ---
 
-## 命令一览
+## 命令
 
-```text
-xhs                    # 交互模式：提示符 xhs> ，每行一条子命令（不必写前缀 xhs）
-xhs help
-xhs login
-xhs check-login
-xhs metrics
-xhs posted [--limit <n>]
-xhs note-detail <noteId>
-xhs post --title <标题> (--content <正文> | --content-file <路径>)
-        [--image <图片路径>] ...   # 至少 1 张、最多 9 张；顺序即上传顺序
+与 `xhs help` 一致：
+
+| 用法 | 说明 |
+|------|------|
+| `xhs` | 交互模式：提示符 `xhs> `，每行一条子命令（不必再加前缀 `xhs`） |
+| `xhs help` | 打印帮助 |
+| `xhs login` | 浏览器登录 |
+| `xhs check-login` | 检查 Cookie / 登录是否有效 |
+| `xhs metrics` | 创作者后台运营数据摘要 |
+| `xhs posted [--limit N]` | 已发笔记列表，可选条数上限 |
+| `xhs note-detail <noteId>` | 指定笔记 ID 的详情 |
+| `xhs post ...` | 见下表 |
+
+**`post` 子命令**
+
+```bash
+xhs post \
+  --title "标题" \
+  --content "正文（须满足长度校验，见运行时报错提示）" \
+  --image ./1.png \
+  --image ./2.jpg
 ```
 
-运行 `xhs help` 与上述一致。
+或使用文件作为正文：
 
-### 交互模式
+```bash
+xhs post --title "标题" --content-file ./body.txt --image ./cover.png
+```
 
-- 直接执行 **`xhs`**（无参数）进入 REPL；语法与 **`xhs <子命令 …>`** 相同，支持用 **单引号/双引号** 包裹含空格的参数。
-- **`help`** 打印帮助；**`exit`** / **`quit`** 退出；**Ctrl+C** 视为正常结束（不当作错误）。
+- `--image` 至少 1 张、最多 9 张，**顺序即上传顺序**。  
+- 每次调用只使用当次参数，**不维护待发队列**。
 
-### `post` 说明
+**交互模式**
 
-- **无队列、无状态**：每次发帖只使用当次传入的 `--title`、`--content` 或 `--content-file`，以及若干 `--image`；不会在 CLI 层维护待发文件。
-- 正文长度需符合实现中的校验（例如不少于 10 字、不超过 1000 字，以运行时提示为准）。
+- 支持单引号/双引号包裹含空格的参数。  
+- 输入 `help` 查看帮助，`exit` / `quit` 退出；**Ctrl+C** 正常退出，不当作错误。
 
 ---
 
 ## 数据目录
 
-应用数据默认在 **`~/.xhs-cli/.cache/`**（Cookie、笔记缓存、浏览器用户数据等）。详见 **`src/config.ts`**。给自动化助手看的约定见 **[AGENTS.md](./AGENTS.md)**。
+默认数据在 **`~/.xhs-cli/.cache/`**（Cookie、缓存、浏览器用户数据目录等），细节见 **`src/config.ts`**。仓库内 **[AGENTS.md](./AGENTS.md)** 供自动化/协作参考。
 
 ---
 
-## 开发与构建
+## 开发脚本
 
-```bash
-npm install
-npm run build    # 生成 dist/，入口为 dist/cli/index.js
-node dist/cli/index.js help
-```
-
-`package.json` 中的 **`npm run dev`** 会先 `build` 再执行无参入口（进入交互模式）。
+| 命令 | 作用 |
+|------|------|
+| `npm run build` | `tsc` 编译到 `dist/` |
+| `npm run dev` | 先 `build` 再执行无参 `xhs`（进入交互模式） |
 
 ---
 
 ## 许可证
 
-MIT
+[MIT](./LICENSE)
 
 ---
 
 ## 链接
 
-- 源码 / 发行：<https://github.com/joohw/xhs-cli>
-- 问题反馈：<https://github.com/joohw/xhs-cli/issues>
+- 仓库：<https://github.com/joohw/xhs-cli>  
+- Issues：<https://github.com/joohw/xhs-cli/issues>

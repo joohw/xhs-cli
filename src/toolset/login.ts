@@ -2,7 +2,7 @@
 
 
 import { Browser, Page } from 'puppeteer-core';
-import { launchBrowser } from '../browser';
+import { launchBrowser } from '../browser/index.js';
 import { getUserProfile, validateUserProfile, type UserProfile } from './get_profile.js';
 
 

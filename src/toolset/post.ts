@@ -1,6 +1,6 @@
 // 发布小红书笔记（无队列：每次调用仅使用传入的标题、正文与本地图片路径）
 
-import { launchBrowser } from '../browser';
+import { launchBrowser } from '../browser/index.js';
 import { existsSync, readFileSync } from 'fs';
 import { ensureAppDataLayout } from '../config.js';
 
@@ -73,7 +73,6 @@ function validateImagePaths(imagePaths: string[]): void {
       throw new Error(`无法读取图片文件: ${imagePath} - ${error instanceof Error ? error.message : String(error)}`);
     }
   }
-  console.error(`✅ 图片验证通过: ${imagePaths.length} 张`);
 }
 
 export type PostNoteArgs = {
@@ -112,14 +111,12 @@ export async function postNote(args: PostNoteArgs): Promise<PostNoteResult> {
     if (isLoginPage) {
       throw new Error('未登录状态。请先运行 xhs login 进行登录。');
     }
-    console.error('📥 正在打开发布页面...');
     await page.goto('https://creator.xiaohongshu.com/publish/publish?from=homepage&target=image', {
       waitUntil: 'domcontentloaded',
       timeout: 30000,
     });
     await new Promise((resolve) => setTimeout(resolve, 3000));
 
-    console.error(`📷 正在上传 ${imagePaths.length} 张图片...`);
     try {
       await page.waitForSelector('input.upload-input[type="file"]', { timeout: 10000 });
       const uploadInput = await page.$('input.upload-input[type="file"]');
@@ -127,11 +124,9 @@ export async function postNote(args: PostNoteArgs): Promise<PostNoteResult> {
         throw new Error('未找到图片上传输入框');
       }
       await uploadInput.uploadFile(...imagePaths);
-      console.error(`✅ 已上传 ${imagePaths.length} 张图片`);
       await new Promise((resolve) => setTimeout(resolve, 2000));
     } catch (error) {
-      console.error('❌ 图片上传失败:', error instanceof Error ? error.message : error);
-      throw error;
+      throw error instanceof Error ? error : new Error(String(error));
     }
 
     try {
@@ -140,10 +135,9 @@ export async function postNote(args: PostNoteArgs): Promise<PostNoteResult> {
       if (titleInput) {
         await titleInput.click({ clickCount: 3 });
         await titleInput.type(params.title!, { delay: 100 });
-        console.error('✅ 标题已填写');
       }
     } catch {
-      console.error('⚠️  填写标题失败，继续...');
+      // 标题可选失败，继续填正文
     }
 
     try {
@@ -161,25 +155,16 @@ export async function postNote(args: PostNoteArgs): Promise<PostNoteResult> {
         editor.dispatchEvent(changeEvent);
         return true;
       }, params.content);
-      if (contentSet) {
-        console.error('✅ 内容已直接设置完成');
-      } else {
+      if (!contentSet) {
         throw new Error('无法找到内容编辑器');
       }
     } catch (error) {
-      console.error('❌ 设置内容失败:', error instanceof Error ? error.message : error);
-      throw error;
+      throw error instanceof Error ? error : new Error(String(error));
     }
 
-    if (params.tags && params.tags.length > 0) {
-      console.error('🏷️  标签添加功能待实现');
-    }
-
-    console.error('✅ 表单填写完成');
-    console.error('💡 提示: 请在浏览器中手动保存草稿或发布');
     return {
       success: true,
-      message: '表单填写完成，请在浏览器中手动保存草稿或发布',
+      message: '已填入标题与正文，请在浏览器中发布或存草稿',
     };
   } finally {
     // 不关闭浏览器，让用户继续操作

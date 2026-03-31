@@ -1,4 +1,4 @@
-import { withLoggedInPage } from '../browser';
+import { withLoggedInPage } from '../browser/index.js';
 import type { Page } from 'puppeteer-core';
 import { saveToCache, loadFromCache } from '../utils/cache.js';
 import { checkLoginState } from './check_login_state.js';

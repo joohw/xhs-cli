@@ -13,6 +13,7 @@ import {
   implGetNoteDetail,
   implPost,
 } from '../toolset/toolImplementations.js';
+import { printXhsInteractiveBanner } from '../toolset/loginBanner.js';
 
 class CliError extends Error {
   constructor(message: string) {
@@ -71,18 +72,26 @@ function splitShellLine(line: string): string[] {
 function printHelp(): void {
   console.error(`xhs-cli — 小红书命令行工具
 
-用法:
-  xhs                    交互模式（逐行输入命令，与下方子命令一致；exit / quit 退出）
+用法与说明:
+  xhs
+      进入交互模式；提示符 xhs> ，exit / quit 退出；Ctrl+C 正常结束
   xhs help
+      显示本帮助
   xhs login
+      打开浏览器，在创作者中心完成登录（Cookie 写入 ~/.xhs-cli/.cache/）
   xhs check-login
+      检查当前 Cookie 是否仍有效及大致剩余时间
   xhs metrics
+      拉取创作者后台运营数据摘要（需已登录）
   xhs posted [--limit <n>]
+      列出已发布笔记列表；--limit 限制条数（可选）
   xhs note-detail <noteId>
+      按笔记 ID 查看单篇详情与数据（需已登录）
   xhs post --title <标题> (--content <正文> | --content-file <路径>)
-              [--image <图片路径>]...（至少一张，最多 9 张，顺序即上传顺序）
+              [--image <路径>]...
+      打开发布页并填入标题、正文与本地图片；--image 至少 1 张、最多 9 张，顺序即上传顺序；无待发队列，仅本次参数生效
 
-数据目录约定见 ~/.xhs-cli/.cache/（详见 src/config.ts）。
+数据目录见 ~/.xhs-cli/.cache/（详见 src/config.ts）。
 `);
 }
 
@@ -202,8 +211,8 @@ export async function runOneCommand(argv: string[]): Promise<void> {
 
 async function runInteractiveLoop(): Promise<void> {
   const rl = createInterface({ input, output, terminal: true });
-  console.error('交互模式：每行输入一条命令（与 `xhs <命令>` 相同，无需写前缀 xhs）；空行忽略；help 帮助；exit / quit 退出。\n');
-
+  printXhsInteractiveBanner();
+  console.error('交互模式：login 登录；check-login 检查登录状态；metrics 获取运营数据；posted 获取已发布笔记；note-detail 获取笔记详情；post 发布笔记；help 帮助；exit / quit 退出。\n');
   try {
     for (;;) {
       let line: string;

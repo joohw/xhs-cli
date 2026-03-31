@@ -90,7 +90,7 @@ xhs post --title "标题" --content-file ./body.txt --image ./cover.png
 
 ## 许可证
 
-[MIT](./LICENSE)
+本项目以 [GNU General Public License v3.0](./LICENSE)（GPL-3.0）发布。
 
 ---
 

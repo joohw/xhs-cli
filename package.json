@@ -32,7 +32,7 @@
     "image-generation"
   ],
   "author": "Joo <1546635571@qq.com>",
-  "license": "MIT",
+  "license": "GPL-3.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/joohw/xhs-cli.git"

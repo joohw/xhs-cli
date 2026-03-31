@@ -7,7 +7,6 @@ import { createInterface } from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
 import {
   implLogin,
-  implCheckLogin,
   implGetOperationData,
   implPosted,
   implGetNoteDetail,
@@ -79,8 +78,6 @@ function printHelp(): void {
       显示本帮助
   xhs login
       打开浏览器，在创作者中心完成登录（Cookie 写入 ~/.xhs-cli/.cache/）
-  xhs check-login
-      检查当前 Cookie 是否仍有效及大致剩余时间
   xhs metrics
       拉取创作者后台运营数据摘要（需已登录）
   xhs posted [--limit <n>]
@@ -147,10 +144,6 @@ export async function runOneCommand(argv: string[]): Promise<void> {
     console.log(await implLogin());
     return;
   }
-  if (cmd === 'check-login') {
-    console.log(await implCheckLogin());
-    return;
-  }
   if (cmd === 'metrics') {
     console.log(await implGetOperationData());
     return;
@@ -212,7 +205,7 @@ export async function runOneCommand(argv: string[]): Promise<void> {
 async function runInteractiveLoop(): Promise<void> {
   const rl = createInterface({ input, output, terminal: true });
   printXhsInteractiveBanner();
-  console.error('交互模式：login 登录；check-login 检查登录状态；metrics 获取运营数据；posted 获取已发布笔记；note-detail 获取笔记详情；post 发布笔记；help 帮助；exit / quit 退出。\n');
+  console.error('交互模式：login 登录；metrics 获取运营数据；posted 获取已发布笔记；note-detail 获取笔记详情；post 发布笔记；help 帮助；exit / quit 退出。\n');
   try {
     for (;;) {
       let line: string;

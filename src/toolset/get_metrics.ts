@@ -1,7 +1,7 @@
 import { withLoggedInPage } from '../browser/index.js';
 import type { Page } from 'puppeteer-core';
 import { saveToCache, loadFromCache } from '../utils/cache.js';
-import { checkLoginState } from './check_login_state.js';
+
 interface TrafficSourceRow {
   name: string;
   percentage: string;
@@ -238,10 +238,6 @@ export class XHSOperationDataFetcher {
  * 获取运营数据（纯文本；同日缓存命中则直接返回文本）
  */
 export async function getOperationData(): Promise<string> {
-  const { isLoggedIn } = await checkLoginState();
-  if (!isLoggedIn) {
-    throw new Error('未登录状态。请先确保已登录小红书。');
-  }
   const today = new Date().toISOString().split('T')[0];
   const cacheFilename = `operation_data/${today}_text.json`;
   const cached = loadFromCache<OperationDataTextCache>(cacheFilename);

@@ -1,7 +1,6 @@
 import type { Page, ElementHandle } from 'puppeteer-core';
 import { withLoggedInPage } from '../browser/index.js';
 import { saveToCache, loadFromCache } from '../utils/cache.js';
-import { checkLoginState } from './check_login_state.js';
 
 interface NoteRaw {
   noteId: string;
@@ -119,7 +118,5 @@ async function scrapeRecentPosts(page: Page, limit?: number): Promise<string> {
 }
 
 export async function getRecentPosts(limit?: number): Promise<string> {
-  const { isLoggedIn } = await checkLoginState();
-  if (!isLoggedIn) throw new Error('未登录状态。请先确保已登录小红书。');
   return withLoggedInPage((page) => scrapeRecentPosts(page, limit));
 }

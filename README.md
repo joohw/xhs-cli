@@ -42,7 +42,6 @@ npm link          # 可选：全局可用 xhs
 | `xhs` | 交互模式：提示符 `xhs> `，每行一条子命令（不必再加前缀 `xhs`） |
 | `xhs help` | 打印帮助 |
 | `xhs login` | 浏览器登录 |
-| `xhs check-login` | 检查 Cookie / 登录是否有效 |
 | `xhs metrics` | 创作者后台运营数据摘要 |
 | `xhs posted [--limit N]` | 已发笔记列表，可选条数上限 |
 | `xhs note-detail <noteId>` | 指定笔记 ID 的详情 |

@@ -1,5 +1,6 @@
 // 发布小红书笔记（无队列：每次调用仅使用传入的标题、正文与本地图片路径）
 
+import type { Page } from 'puppeteer-core';
 import { launchBrowser } from '../browser/index.js';
 import { existsSync, readFileSync } from 'fs';
 import { ensureAppDataLayout } from '../config.js';
@@ -34,8 +35,8 @@ function validatePostParams(params: PostNoteParams): void {
     if (typeof params.title !== 'string') {
       throw new Error('标题(title)必须是字符串');
     }
-    if (params.title.length > 100) {
-      throw new Error('标题长度不能超过100个字符');
+    if (params.title.length > 20) {
+      throw new Error('标题长度不能超过20个字符');
     }
   }
   if (params.tags !== undefined) {
@@ -60,8 +61,8 @@ function validateImagePaths(imagePaths: string[]): void {
   if (imagePaths.length === 0) {
     throw new Error('至少需要一张图片');
   }
-  if (imagePaths.length > 9) {
-    throw new Error(`图片数量不能超过9张，当前 ${imagePaths.length} 张`);
+  if (imagePaths.length > 18) {
+    throw new Error(`图片数量不能超过18张，当前 ${imagePaths.length} 张`);
   }
   for (const imagePath of imagePaths) {
     if (!existsSync(imagePath)) {
@@ -80,9 +81,51 @@ export type PostNoteArgs = {
   title: string;
   /** 正文 */
   content: string;
-  /** 本地图片路径，顺序即上传顺序，1～9 张 */
+  /** 本地图片路径，顺序即上传顺序，1～18 张 */
   imagePaths: string[];
+  /**
+   * 为 true 时在填表后自动点击页面「发布」按钮；默认 false，仅填表并提示在浏览器中手动发布或修改。
+   */
+  publish?: boolean;
 };
+
+/** 等待主「发布」按钮可点并点击（与发布页红色「发布」按钮文案一致） */
+async function waitAndClickPublish(page: Page): Promise<void> {
+  await page.waitForFunction(
+    () => {
+      for (const b of Array.from(document.querySelectorAll('button'))) {
+        const el = b as HTMLButtonElement;
+        if (el.disabled) continue;
+        const t = (el.textContent ?? '').replace(/\s+/g, '');
+        if (t === '发布' || t === '立即发布') return true;
+      }
+      return false;
+    },
+    { timeout: 45000 },
+  );
+  const clicked = await page.evaluate(() => {
+    const tryClick = (el: HTMLButtonElement) => {
+      if (el.disabled) return false;
+      const t = (el.textContent ?? '').replace(/\s+/g, '');
+      if (t !== '发布' && t !== '立即发布') return false;
+      el.click();
+      return true;
+    };
+    for (const sel of ['button.bg-red.custom-button', 'button.bg-red', 'button.custom-button', 'button.d-button']) {
+      for (const b of Array.from(document.querySelectorAll(sel))) {
+        if (tryClick(b as HTMLButtonElement)) return true;
+      }
+    }
+    for (const b of Array.from(document.querySelectorAll('button'))) {
+      if (tryClick(b as HTMLButtonElement)) return true;
+    }
+    return false;
+  });
+  if (!clicked) {
+    throw new Error('未找到可点击的「发布」按钮');
+  }
+  await new Promise((r) => setTimeout(r, 2500));
+}
 
 /**
  * 打开发布页并填入标题、正文与图片；不读写队列目录。
@@ -97,6 +140,7 @@ export async function postNote(args: PostNoteArgs): Promise<PostNoteResult> {
   validatePostParams(params);
   validateImagePaths(args.imagePaths);
   const imagePaths = [...args.imagePaths];
+  const autoPublish = args.publish === true;
 
   const browser = await launchBrowser(false);
   try {
@@ -162,9 +206,18 @@ export async function postNote(args: PostNoteArgs): Promise<PostNoteResult> {
       throw error instanceof Error ? error : new Error(String(error));
     }
 
+    if (autoPublish) {
+      await waitAndClickPublish(page);
+      return {
+        success: true,
+        message: '已自动点击「发布」，请留意页面是否发布成功',
+      };
+    }
+
     return {
       success: true,
-      message: '已填入标题与正文，请在浏览器中发布或存草稿',
+      message:
+        '已填入标题与正文；发布内容已就绪，您可在页面中修改后再手动发布或存草稿。',
     };
   } finally {
     // 不关闭浏览器，让用户继续操作

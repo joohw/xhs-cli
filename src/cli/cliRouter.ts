@@ -85,8 +85,9 @@ function printHelp(): void {
   xhs note-detail <noteId>
       按笔记 ID 查看单篇详情与数据（需已登录）
   xhs post --title <标题> (--content <正文> | --content-file <路径>)
-              [--image <路径>]...
-      打开发布页并填入标题、正文与本地图片；--image 至少 1 张、最多 9 张，顺序即上传顺序；无待发队列，仅本次参数生效
+              [--image <路径>]... [--publish | --publish=true|false]
+      打开发布页并填入标题、正文与本地图片；--image 至少 1 张、最多 18 张，顺序即上传顺序；无待发队列，仅本次参数生效
+      默认仅填表；加 --publish 或 --publish=true 时在填表后自动点击「发布」
 
 数据目录见 ~/.xhs-cli/.cache/（详见 src/config.ts）。
 `);
@@ -129,6 +130,20 @@ function parseOpts(argv: string[]): {
   return { rest, flags, opts };
 }
 
+/** `post` 是否自动点击发布：显式 `--publish=<bool>` 优先于单独 `--publish` 开关 */
+function resolvePostPublish(opts: Record<string, string>, flags: Set<string>): boolean {
+  if (opts.publish !== undefined) {
+    const v = opts.publish.trim().toLowerCase();
+    if (v === 'true' || v === '1' || v === 'yes') {
+      return true;
+    }
+    if (v === 'false' || v === '0' || v === 'no') {
+      return false;
+    }
+  }
+  return flags.has('publish');
+}
+
 /**
  * 执行一条子命令（与传入 `process.argv` 切片语义一致，不含 `xhs` 本身）。
  */
@@ -169,7 +184,7 @@ export async function runOneCommand(argv: string[]): Promise<void> {
   }
 
   if (cmd === 'post') {
-    const { opts } = parseOpts(tail);
+    const { opts, flags } = parseOpts(tail);
     const title = opts.title?.trim();
     if (!title) {
       die('❌ post 需要 --title <标题>');
@@ -193,9 +208,16 @@ export async function runOneCommand(argv: string[]): Promise<void> {
       }
     }
     if (imagePaths.length === 0) {
-      die('❌ 至少需要一张图片: 重复 --image <本地路径>（1～9 张）');
+      die('❌ 至少需要一张图片: 重复 --image <本地路径>（1～18 张）');
     }
-    console.log(await implPost({ title, content, imagePaths }));
+    console.log(
+      await implPost({
+        title,
+        content,
+        imagePaths,
+        publish: resolvePostPublish(opts, flags),
+      }),
+    );
     return;
   }
 

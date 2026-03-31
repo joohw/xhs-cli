@@ -1,6 +1,6 @@
 {
   "name": "xhs-cli",
-  "version": "1.0.10",
+  "version": "1.0.11",
   "description": "小红书创作者命令行：登录、数据、已发笔记、发帖（标题/正文/图片）",
   "type": "module",
   "main": "dist/cli/index.js",

@@ -26,7 +26,6 @@ git clone https://github.com/joohw/xhs-cli.git
 cd xhs-cli
 npm install
 npm run build
-npm link          # 可选：全局可用 xhs
 ```
 
 构建产物入口为 `dist/cli/index.js`，等价于命令 **`xhs`**。
@@ -63,8 +62,9 @@ xhs post \
 xhs post --title "标题" --content-file ./body.txt --image ./cover.png
 ```
 
-- `--image` 至少 1 张、最多 9 张，**顺序即上传顺序**。  
-- 每次调用只使用当次参数，**不维护待发队列**。
+- `--image` 至少 1 张、最多 18 张，**顺序即上传顺序**。  
+- 每次调用只使用当次参数，**不维护待发队列**。  
+- **`--publish`**（或 `--publish=true`）：填表后自动点击页面「发布」；默认不带则只填表，可在浏览器里改完再手动发布。
 
 **交互模式**
 

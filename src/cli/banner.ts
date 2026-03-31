@@ -6,7 +6,6 @@ import process from 'node:process';
 
 /** 主标题 + 作者（两行均着色，保证在交互入口足够显眼） */
 const BANNER_LINES = ['  xhs-cli · 小红书', '  dev by @joo'];
-
 export function printXhsInteractiveBanner(): void {
   const useAnsi =
     !process.env.NO_COLOR && process.env.TERM !== 'dumb' && (process.stderr.isTTY ?? false);

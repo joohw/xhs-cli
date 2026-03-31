@@ -11,8 +11,8 @@ import {
   implPosted,
   implGetNoteDetail,
   implPost,
-} from '../toolset/toolImplementations.js';
-import { printXhsInteractiveBanner } from '../toolset/loginBanner.js';
+} from '../toolset';
+import { printXhsInteractiveBanner } from './banner.js';
 
 class CliError extends Error {
   constructor(message: string) {

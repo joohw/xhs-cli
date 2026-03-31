@@ -1,13 +1,16 @@
 #!/usr/bin/env node
-// XHS-CLI 入口：子命令由 src/agent/cliRouter 调度；工具说明见 boot.md；LLM 交互见 xhs agent
+// XHS-CLI 入口：子命令见 cliRouter；业务能力见 toolset（impl*）
 
-import { runCli } from './agent/cliRouter.js';
+import { runCli, isReadlineAbortError } from './cliRouter.js';
 
 async function main() {
   const args = process.argv.slice(2);
   try {
     await runCli(args);
   } catch (error) {
+    if (isReadlineAbortError(error)) {
+      process.exit(0);
+    }
     console.error('❌ 执行出错:', error);
     if (error instanceof Error) {
       console.error('错误信息:', error.message);

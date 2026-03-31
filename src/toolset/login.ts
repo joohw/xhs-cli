@@ -2,9 +2,8 @@
 
 
 import { Browser, Page } from 'puppeteer-core';
-import { launchBrowser } from '../browser/browser.js';
-import { getUserProfile } from './get_my_profile.js';
-import { validateUserProfile, UserProfile } from '../types/userProfile.js';
+import { launchBrowser } from '../browser';
+import { getUserProfile, validateUserProfile, type UserProfile } from './get_profile.js';
 
 
 // 等待登录完成

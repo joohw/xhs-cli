@@ -15,7 +15,6 @@ TEST_MCP.md
 src/test/
 
 # 文档（发布时会自动将 README.npm.md 复制为 README.md）
-POSTING_GUIDELINES.md
 MCP_TRANSPORT.md
 CURSOR_MCP.md
 GUIDEFORMCP.md

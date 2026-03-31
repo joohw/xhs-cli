@@ -1,12 +1,12 @@
 {
   "name": "xhs-cli",
   "version": "1.0.9",
-  "description": "面向个人创作者的小红书 CLI 工具（含 pi-agent；boot.md 为角色与数据约定）- 管理、分析与发布内容，支持封面生成",
+  "description": "面向个人创作者的小红书 CLI：登录、数据、发帖队列与沙盒；自然语言 Agent 由外部宿主集成",
   "type": "module",
-  "main": "dist/cli.js",
-  "types": "dist/cli.d.ts",
+  "main": "dist/cli/index.js",
+  "types": "dist/cli/index.d.ts",
   "bin": {
-    "xhs": "dist/cli.js"
+    "xhs": "dist/cli/index.js"
   },
   "files": [
     "dist",
@@ -15,15 +15,9 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsc && npm run copy:assets",
-    "copy:assets": "node -e \"const fs=require('fs');const path=require('path');function copyDir(src,dest){if(!fs.existsSync(dest))fs.mkdirSync(dest,{recursive:true});const entries=fs.readdirSync(src,{withFileTypes:true});for(const entry of entries){const srcPath=path.join(src,entry.name);const destPath=path.join(dest,entry.name);if(entry.isDirectory()){copyDir(srcPath,destPath);}else{fs.copyFileSync(srcPath,destPath);}}}copyDir('src/prompts','dist/prompts');copyDir('src/templates','dist/templates');const da=path.join('dist','agent');if(!fs.existsSync(da))fs.mkdirSync(da,{recursive:true});const b=path.join('src','agent','boot.md');if(fs.existsSync(b))fs.copyFileSync(b,path.join(da,'boot.md'));\"",
+    "build": "tsc",
     "postpublish": "git checkout README.md",
-    "dev": "tsx src/cli.ts",
-    "start": "tsx src/cli.ts",
-    "xhs": "tsx src/cli.ts",
-    "preview": "tsx src/scripts/preview_templates.ts",
-    "test": "tsx src/test/_test.ts",
-    "test:cover": "tsx src/test/test_cover_generation.ts"
+    "dev": "npm run build && node dist/cli/index.js"
   },
   "keywords": [
     "xiaohongshu",
@@ -51,10 +45,7 @@
     "node": ">=20.0.0"
   },
   "dependencies": {
-    "@mariozechner/pi-agent-core": "^0.60.0",
-    "@mariozechner/pi-ai": "^0.60.0",
     "@resvg/resvg-js": "^2.5.1",
-    "@sinclair/typebox": "^0.34.48",
     "@types/html2canvas": "^0.5.35",
     "express": "^5.1.0",
     "html2canvas": "^1.4.1",
@@ -73,7 +64,6 @@
     "@types/open": "^6.1.0",
     "@types/qrcode-terminal": "^0.12.2",
     "@types/react": "^19.2.2",
-    "tsx": "^4.7.0",
     "typescript": "^5.3.3"
   }
 }

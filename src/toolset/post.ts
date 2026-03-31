@@ -217,9 +217,15 @@ export async function postNote(args: PostNoteArgs): Promise<PostNoteResult> {
     return {
       success: true,
       message:
-        '已填入标题与正文；发布内容已就绪，您可在页面中修改后再手动发布或存草稿。',
+        '已填入标题与正文；浏览器窗口保持打开，请在页面中确认后发布或存草稿。',
     };
   } finally {
-    // 不关闭浏览器，让用户继续操作
+    try {
+      if (browser.isConnected()) {
+        await browser.disconnect();
+      }
+    } catch {
+      // 忽略断开时的异常
+    }
   }
 }

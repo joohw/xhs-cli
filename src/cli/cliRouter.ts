@@ -87,7 +87,7 @@ function printHelp(): void {
   xhs post --title <标题> (--content <正文> | --content-file <路径>)
               [--image <路径>]... [--publish | --publish=true|false]
       打开发布页并填入标题、正文与本地图片；--image 至少 1 张、最多 18 张，顺序即上传顺序；无待发队列，仅本次参数生效
-      默认仅填表；加 --publish 或 --publish=true 时在填表后自动点击「发布」
+      默认仅填表（有界面，填完后窗口保留供确认）；加 --publish 或 --publish=true 时在填表后自动点击「发布」
 
 数据目录见 ~/.xhs-cli/.cache/（详见 src/config.ts）。
 `);

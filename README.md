@@ -38,8 +38,8 @@ npm run build
 
 默认数据在 **`~/.xhs-cli/.cache/`**。
 
-- **未配置多账号时**：会话与 Cookie 与原行为一致，使用 `~/.xhs-cli/.cache/browser-data`。  
-- **配置多账号后**：每个账号有独立 **`~/.xhs-cli/.cache/accounts/<name>/browser-data`**；注册表 **`accounts/registry.json`** 记录 `currentAccount`。未设置默认账号或未带 `--account` 时仍会落回 **`browser-data`**，避免老用户突然被迁档。  
+- **浏览器会话（CLI）**：须至少执行过一次 **`xhs account add <name>`** 并在注册表中有条目；Cookie 与用户数据目录为 **`~/.xhs-cli/.cache/accounts/<name>/browser-data`**。`resolveSession` 不会在无账号配置时静默使用全局 `cache/browser-data`；未指定账号时由 **`xhs account use`**、唯一已注册账号、或各命令支持的 **`--account` / 位置参数 `<slug>`** 决定（无法确定则报错）。
+- **注册表**：**`accounts/registry.json`** 记录 `currentAccount` 与各账号目录。
 
 **草稿**按账号保存在 **`~/.xhs-cli/.cache/accounts/<name>/drafts/`**（遗留的 **`drafts/`** 根目录仍可读，保存时会迁到对应账号目录）；**发布后本地归档**在 `published/`（仅记账，不可替代平台侧状态）。
 
@@ -61,7 +61,6 @@ xhs account add account-b
 xhs account add account-c
 
 xhs account use account-b
-xhs account current
 ```
 
 按账号登录（会话目录互不干扰）：
@@ -80,7 +79,7 @@ xhs recent --account account-b --limit 20
 xhs posted --account account-b
 ```
 
-若已 `account use <name>`，可省略 `--account`。
+若已 `account use <name>`，可省略 `--account`；也可在支持子命令上用位置参数指定同一 slug，例如 `xhs metrics account-b`、`xhs recent account-b --limit 20`。
 
 ---
 
@@ -118,13 +117,12 @@ xhs posted --account account-b
 | **`xhs account list`** | 列出账号（`*` 标当前默认） |
 | **`xhs account add <name>`** | 创建账号目录、`browser-data`、`policy.md` |
 | **`xhs account use <name>`** | 设为默认账号 |
-| **`xhs account current`** | 显示默认账号 |
 | **`xhs account show <name>`** | 显示单账号配置 |
 | `xhs login [--account …]` | 浏览器登录 |
-| `xhs metrics --account <name>` | 创作者后台运营数据摘要（**须**显式指定账号） |
-| `xhs recent [--account …] [--limit N]` | 创作者后台已发笔记列表 |
-| `xhs posted [--account …]` | 本地发帖归档列表 |
-| `xhs detail <noteId> [--account …]` | 笔记详情 |
+| `xhs metrics [<slug>] [--account <name>]` | 创作者后台运营数据摘要（与 `resolveSession` 同一套账号解析） |
+| `xhs recent [<slug>] [--account …] [--limit N]` | 创作者后台已发笔记列表 |
+| `xhs posted [<slug>] [--account …]` | 本地发帖归档列表 |
+| `xhs detail <noteId> [<slug>] [--account …]` | 笔记详情 |
 | **`xhs draft …`** | 新建草稿（无 `create` 子命令，直接跟 `--title` 等） |
 | **`xhs drafts [--account …] [--status …]`** | 草稿列表 |
 | **`xhs draft show <id> [--account …]`** | 草稿详情 |

@@ -16,8 +16,8 @@
 
 - 应用根目录：`~/.xhs-cli`（仅作父目录）
 - 应用生成内容：`~/.xhs-cli/.cache/`
-- **未配置多账号时**浏览器用户数据：`~/.xhs-cli/.cache/browser-data`
-- **多账号时**每账号会话：`~/.xhs-cli/.cache/accounts/<slug>/browser-data`（详见 `README`）
+- **未配置多账号时**浏览器用户数据：CLI 仍要求先在注册表中有一个账号条目；数据目录为 **`~/.xhs-cli/.cache/accounts/<slug>/browser-data`**（不再将全局 `cache/browser-data` 作为会话回退）。
+- **多账号时**每账号会话：同上，每 slug 独立目录（详见 `README`）
 - 草稿：每账号 `~/.xhs-cli/.cache/accounts/<slug>/drafts/`（遗留根目录 `drafts/` 仍可读）；发布归档：`~/.xhs-cli/.cache/published/`
 
 **发帖**：`post` 子命令仅使用当次传入的 `--title`、`--content`（或 `--content-file`）与 `--image` 路径，不依赖待发文件队列。

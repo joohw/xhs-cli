@@ -17,6 +17,8 @@ import {
   loadAccountsRegistry,
   formatShowAccount,
   pickAccountSlug,
+  firstRegisteredSlugInRest,
+  lastRegisteredSlugInRest,
 } from '../toolset/accountRegistry.js';
 import {
   createDraft,
@@ -48,29 +50,28 @@ function printHelp(): void {
   xhs help
       显示本帮助（无子命令时也会打印本说明）
 
-  # 会话与登录（可加 --account / login <slug>；未指定时用默认账号；仅一个已配置账号时自动选用；无账号配置时沿用 ~/.xhs-cli/.cache/browser-data）
+  # 会话与登录（账号：--account <slug> 或与命令兼容的位置参数 <slug>；再无则 account use 或唯一已配置账号）
   xhs login [--account <name> | <name>]
-  xhs metrics --account <name>
-  xhs recent [--account <name>] [--limit <n>]
-  xhs posted [--account <name>]
-  xhs detail <noteId> [--account <name>]
+  xhs metrics [<slug>] [--account <name>]
+  xhs recent [<slug>] [--limit <n>]
+  xhs posted [<slug>] [--account <name>]
+  xhs detail <noteId> [<slug>] [--account <name>]
   xhs post (--title <标题> (--content <正文> | --content-file <路径>))
-              [--image <路径>]... [--publish | --publish=true|false] [--account <name>]
+              [--image <路径>]... [--publish | --publish=true|false] [<slug>] [--account <name>]
 
   # 账号（配置存 ~/.xhs-cli/.cache/accounts/registry.json ，每账号独立 browser-data）
   xhs account list
   xhs account add <name>
   xhs account use <name>
-  xhs account current
   xhs account show <name>
 
   # 草稿：直接 draft 创建；drafts 列表；通过后 draft post 走发帖（成功后写入本地 posted 归档）
-  xhs draft [--account <name>] --title <标题> (--content | --content-file) [--image <路径>]...
-      （registry 仅一个账号时可省略 --account）
-  xhs drafts [--account <name>] [--status draft|approved|published]
-  xhs draft show <id> [--account <name>]
-  xhs draft approve <id> [--account <name>]
-  xhs draft post <id> [--account <name>]
+  xhs draft [<slug>] [--account <name>] --title <标题> (--content | --content-file) [--image <路径>]...
+      （仅一个已配置账号时可省略账号）
+  xhs drafts [<slug>] [--account <name>] [--status draft|approved|published]
+  xhs draft show <id> [<slug>] [--account <name>]
+  xhs draft approve <id> [<slug>] [--account <name>]
+  xhs draft post <id> [<slug>] [--account <name>]
 
 数据目录见 ~/.xhs-cli/.cache/（详见 README 与 src/config.ts）。
 备注：不会在无人确认时擅自发帖；xhs post 的 --publish 与 draft post 由人工按需触发。
@@ -136,6 +137,35 @@ function resolveSessionCli(explicitAccount?: string) {
   }
 }
 
+/** 位置参数中的账号：--account 优先；再按约定从 `rest` 里取已注册的 slug（与 resolveSession 链式衔接，无静默回退目录）。 */
+type PositionalAccountMode = 'first' | 'last' | 'second';
+
+function explicitAccountFromCli(
+  opts: Record<string, string>,
+  rest: string[],
+  mode: PositionalAccountMode,
+): string | undefined {
+  const fromFlag = opts.account?.trim();
+  if (fromFlag) {
+    return fromFlag;
+  }
+  const reg = loadAccountsRegistry();
+  if (mode === 'first') {
+    return firstRegisteredSlugInRest(reg, rest);
+  }
+  if (mode === 'last') {
+    return lastRegisteredSlugInRest(reg, rest);
+  }
+  if (mode === 'second') {
+    const s = rest[1]?.trim();
+    if (s && reg.accounts[s]) {
+      return s;
+    }
+    return firstRegisteredSlugInRest(reg, rest.slice(1));
+  }
+  return undefined;
+}
+
 /** `login [--account slug | slug]`：位置参数 slug 等价于 `--account`，二者不可同时使用。 */
 function resolveLoginExplicitAccountSlug(
   opts: Record<string, string>,
@@ -175,30 +205,12 @@ function runAccountCommand(tail: string[]): void {
   const sub = tail[0]?.toLowerCase()?.trim();
   const rest = tail.slice(1);
   if (!sub || sub === 'help' || sub === '--help') {
-    die(`❌ 用法: account list | add ... | use <name> | current | show <name>`);
+    die(`❌ 用法: account list | add ... | use <name> | show <name>`);
     return;
   }
   try {
     if (sub === 'list') {
       console.log(formatAccountListLines());
-      return;
-    }
-    if (sub === 'current') {
-      const reg = loadAccountsRegistry();
-      if (!reg.currentAccount) {
-        const keys = Object.keys(reg.accounts);
-        if (keys.length === 1) {
-          console.log(
-            `未设置默认账号；仅此一个已配置账号（${keys[0]}），login/post 等将自动使用该账号。`,
-          );
-        } else {
-          console.log(
-            '未设置默认账号；未指定 --account 时将使用 ~/.xhs-cli/.cache/browser-data 。',
-          );
-        }
-      } else {
-        console.log(`当前默认账号: ${reg.currentAccount}`);
-      }
       return;
     }
     if (sub === 'show') {
@@ -252,10 +264,11 @@ async function runDraftCommand(tail: string[]): Promise<void> {
       if (sub0 === 'show') {
         const id = rest[0]?.trim();
         if (!id) {
-          die('❌ 用法: draft show <id> [--account <name>]');
+          die('❌ 用法: draft show <id> [<slug>] [--account <name>]');
         }
-        const { opts } = parseOpts(rest.slice(1));
-        const d = loadDraft(id, opts.account?.trim());
+        const { opts, rest: tailRest } = parseOpts(rest.slice(1));
+        const ac = explicitAccountFromCli(opts, tailRest, 'first');
+        const d = loadDraft(id, ac);
         if (!d) {
           die(`❌ 未找到草稿: ${id}`);
         }
@@ -265,20 +278,22 @@ async function runDraftCommand(tail: string[]): Promise<void> {
       if (sub0 === 'approve') {
         const id = rest[0]?.trim();
         if (!id) {
-          die('❌ 用法: draft approve <id> [--account <name>]');
+          die('❌ 用法: draft approve <id> [<slug>] [--account <name>]');
         }
-        const { opts } = parseOpts(rest.slice(1));
-        approveDraft(id, opts.account?.trim());
+        const { opts, rest: tailRest } = parseOpts(rest.slice(1));
+        approveDraft(id, explicitAccountFromCli(opts, tailRest, 'first'));
         console.log(`✅ 已批准: ${id}`);
         return;
       }
       if (sub0 === 'post') {
         const id = rest[0]?.trim();
         if (!id) {
-          die('❌ 用法: draft post <id> [--account <name>]');
+          die('❌ 用法: draft post <id> [<slug>] [--account <name>]');
         }
-        const { opts } = parseOpts(rest.slice(1));
-        console.log(await postDraftById(id, opts.account?.trim()));
+        const { opts, rest: tailRest } = parseOpts(rest.slice(1));
+        console.log(
+          await postDraftById(id, explicitAccountFromCli(opts, tailRest, 'first')),
+        );
         return;
       }
     } catch (e) {
@@ -287,12 +302,13 @@ async function runDraftCommand(tail: string[]): Promise<void> {
   }
 
   try {
-    const { opts } = parseOpts(tail);
-    const explicitAcc = opts.account?.trim();
-    const account = explicitAcc ?? pickAccountSlug(loadAccountsRegistry());
+    const { opts, rest } = parseOpts(tail);
+    const reg = loadAccountsRegistry();
+    const explicitAcc = explicitAccountFromCli(opts, rest, 'first');
+    const account = explicitAcc ?? pickAccountSlug(reg);
     if (!account) {
       die(
-        '❌ draft 需要 --account <name>（已配置多个账号时须指定，或先执行 xhs account use <name>）',
+        '❌ draft 需要 --account <name>、位置参数 <slug>、或先执行 xhs account use <name>（仅注册了一个账号时可省略）',
       );
     }
     const title = opts.title?.trim();
@@ -325,7 +341,7 @@ async function runDraftCommand(tail: string[]): Promise<void> {
 
 function runDraftsCommand(tail: string[]): void {
   try {
-    const { opts } = parseOpts(tail);
+    const { opts, rest } = parseOpts(tail);
     let filter: DraftStatus | undefined;
     if (opts.status?.trim()) {
       const s = opts.status.trim().toLowerCase();
@@ -334,10 +350,11 @@ function runDraftsCommand(tail: string[]): void {
       }
       filter = s as DraftStatus;
     }
+    const ac = explicitAccountFromCli(opts, rest, 'first');
     console.log(
       formatDraftListItems(
         listDrafts({
-          account: opts.account?.trim(),
+          account: ac,
           status: filter,
         }),
       ),
@@ -372,7 +389,7 @@ export async function runOneCommand(argv: string[]): Promise<void> {
   }
 
   if (cmd === 'published') {
-    die('❌ published 已移除，请使用：xhs posted [--account <name>]');
+    die('❌ published 已移除，请使用：xhs posted [<slug>] [--account <name>]');
   }
 
   if (cmd === 'login') {
@@ -382,29 +399,28 @@ export async function runOneCommand(argv: string[]): Promise<void> {
     return;
   }
   if (cmd === 'metrics') {
-    const { opts } = parseOpts(tail);
-    const account = opts.account?.trim();
-    if (!account) {
-      die('❌ metrics 必须指定 --account <name>');
-    }
-    console.log(await implGetOperationData(resolveSessionCli(account)));
+    const { opts, rest } = parseOpts(tail);
+    const ex = explicitAccountFromCli(opts, rest, 'first');
+    console.log(await implGetOperationData(resolveSessionCli(ex)));
     return;
   }
 
   if (cmd === 'posted') {
-    const { opts } = parseOpts(tail);
-    console.log(formatPublishedList(listPublished(opts.account?.trim())));
+    const { opts, rest } = parseOpts(tail);
+    const ex = explicitAccountFromCli(opts, rest, 'first');
+    console.log(formatPublishedList(listPublished(ex)));
     return;
   }
 
   if (cmd === 'recent') {
-    const { opts } = parseOpts(tail);
+    const { opts, rest } = parseOpts(tail);
     const lim = opts.limit !== undefined ? parseInt(opts.limit, 10) : undefined;
     if (opts.limit !== undefined && (Number.isNaN(lim!) || lim! < 1)) {
       die('❌ --limit 需为正整数');
     }
+    const ex = explicitAccountFromCli(opts, rest, 'first');
     console.log(
-      await implPosted(lim, resolveSessionCli(opts.account)),
+      await implPosted(lim, resolveSessionCli(ex)),
     );
     return;
   }
@@ -413,15 +429,17 @@ export async function runOneCommand(argv: string[]): Promise<void> {
     const { opts, rest } = parseOpts(tail);
     const id = rest[0]?.trim();
     if (!id) {
-      die('❌ 用法: detail <noteId> [--account <name>]');
+      die('❌ 用法: detail <noteId> [<slug>] [--account <name>]');
     }
-    console.log(await implGetNoteDetail(id, resolveSessionCli(opts.account)));
+    const ex = explicitAccountFromCli(opts, rest, 'second');
+    console.log(await implGetNoteDetail(id, resolveSessionCli(ex)));
     return;
   }
 
   if (cmd === 'post') {
-    const { opts, flags } = parseOpts(tail);
-    const session = resolveSessionCli(opts.account);
+    const { opts, flags, rest } = parseOpts(tail);
+    const ex = explicitAccountFromCli(opts, rest, 'last');
+    const session = resolveSessionCli(ex);
     const title = opts.title?.trim();
     if (!title) {
       die('❌ post 需要 --title <标题>');

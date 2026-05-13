@@ -136,6 +136,34 @@ export function pickAccountSlug(
   return undefined;
 }
 
+/** 从左到右找 `rest` 中第一个已在 registry 的 slug */
+export function firstRegisteredSlugInRest(
+  reg: AccountsRegistryFile,
+  rest: string[],
+): string | undefined {
+  for (const r of rest) {
+    const t = r?.trim();
+    if (t && reg.accounts[t]) {
+      return t;
+    }
+  }
+  return undefined;
+}
+
+/** 从右到左找第一个已在 registry 的 slug（适合 `post … <slug>` 把账号写在末尾） */
+export function lastRegisteredSlugInRest(
+  reg: AccountsRegistryFile,
+  rest: string[],
+): string | undefined {
+  for (let i = rest.length - 1; i >= 0; i--) {
+    const t = rest[i]?.trim();
+    if (t && reg.accounts[t]) {
+      return t;
+    }
+  }
+  return undefined;
+}
+
 const DEFAULT_POLICY = `<!-- xhs-cli 默认策略模板，可自行修改 -->
 
 # 发帖与运营策略
@@ -221,7 +249,7 @@ export function formatAccountListLines(): string {
   const reg = loadAccountsRegistry();
   const keys = Object.keys(reg.accounts).sort();
   if (keys.length === 0) {
-    return '尚未配置账号。可使用 xhs account add <name> 添加；在未配置或未指定 --account 时，会话仍使用默认目录 ~/.xhs-cli/.cache/browser-data 。';
+    return '尚未配置账号。请先执行 xhs account add <name>。';
   }
   const lines: string[] = [];
   const cur = reg.currentAccount ?? '';
@@ -241,7 +269,7 @@ export function formatAccountListLines(): string {
   } else {
     lines.push('');
     lines.push(
-      '未设置默认账号（当前使用遗留会话目录 ~/.xhs-cli/.cache/browser-data ）。可用 xhs account use <name> 指定。',
+      '未设置默认账号；多账号时请用 --account / 位置参数 <slug> 或先执行 xhs account use <name>。',
     );
   }
   return lines.join('\n');

@@ -38,8 +38,8 @@ npm run build
 
 默认数据在 **`~/.xhs-cli/.cache/`**。
 
-- **浏览器会话（CLI）**：须至少执行过一次 **`xhs account add <name>`** 并在注册表中有条目；Cookie 与用户数据目录为 **`~/.xhs-cli/.cache/accounts/<name>/browser-data`**。`resolveSession` 不会在无账号配置时静默使用全局 `cache/browser-data`；未指定账号时由 **`xhs account use`**、唯一已注册账号、或各命令支持的 **`--account` / 位置参数 `<slug>`** 决定（无法确定则报错）。
-- **注册表**：**`accounts/registry.json`** 记录 `currentAccount` 与各账号目录。
+- **浏览器会话（CLI）**：须至少执行过一次 **`xhs account add <name>`** 并在注册表中有条目；Cookie 与用户数据目录为 **`~/.xhs-cli/.cache/accounts/<name>/browser-data`**。`resolveSession` 不会在无账号配置时静默使用全局 `cache/browser-data`。**每次**业务命令均须在命令行中通过 **`--account <slug>`** 或该命令支持的 **位置参数 `<slug>`** 指明账号；不再根据「默认账号」或「仅有一个账号」自动推断。
+- **注册表**：**`accounts/registry.json`** 记录各账号目录；其中的 `currentAccount` 为旧版遗留字段，当前 CLI **不读取**。
 
 **草稿**按账号保存在 **`~/.xhs-cli/.cache/accounts/<name>/drafts/`**（遗留的 **`drafts/`** 根目录仍可读，保存时会迁到对应账号目录）；**发布后本地归档**在 `published/`（仅记账，不可替代平台侧状态）。
 
@@ -59,8 +59,6 @@ npm run build
 xhs account add account-a
 xhs account add account-b
 xhs account add account-c
-
-xhs account use account-b
 ```
 
 按账号登录（会话目录互不干扰）：
@@ -79,7 +77,7 @@ xhs recent --account account-b --limit 20
 xhs posted --account account-b
 ```
 
-若已 `account use <name>`，可省略 `--account`；也可在支持子命令上用位置参数指定同一 slug，例如 `xhs metrics account-b`、`xhs recent account-b --limit 20`。
+每条命令都带上 `--account <slug>`，或在支持子命令上用位置参数写同一 slug，例如 `xhs metrics account-b`、`xhs recent account-b --limit 20`。
 
 ---
 
@@ -114,9 +112,8 @@ xhs posted --account account-b
 |------|------|
 | （无子命令） | 打印帮助到 stderr，退出码 `1` |
 | `xhs help` | 打印帮助 |
-| **`xhs account list`** | 列出账号（`*` 标当前默认） |
+| **`xhs account list`** | 列出已配置账号 |
 | **`xhs account add <name>`** | 创建账号目录、`browser-data`、`policy.md` |
-| **`xhs account use <name>`** | 设为默认账号 |
 | **`xhs account show <name>`** | 显示单账号配置 |
 | `xhs login [--account …]` | 浏览器登录 |
 | `xhs metrics [<slug>] [--account <name>]` | 创作者后台运营数据摘要（与 `resolveSession` 同一套账号解析） |

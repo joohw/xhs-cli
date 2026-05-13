@@ -2,15 +2,14 @@ import { ensureAppDataLayout } from '../config.js';
 import {
   hasConfiguredAccounts,
   loadAccountsRegistry,
-  pickAccountSlug,
 } from './accountRegistry.js';
 import type { ResolvedSession } from './sessionTypes.js';
 
 /**
  * 解析本次命令使用的 Puppeteer userDataDir 与缓存前缀。
  *
- * 须已在 registry 中配置账号；`explicitAccount` 有值时优先使用，否则由 `pickAccountSlug` 使用
- * `currentAccount` 或唯一已配置账号。无法确定 slug 时抛错（不使用遗留全局 browser-data）。
+ * 须已在 registry 中配置账号，且 **`explicitAccount` 必须为非空 slug**（由 CLI 的 `--account` 或位置参数传入）。
+ * 不使用注册表中的默认字段推断账号。无法确定 slug 时抛错（不使用遗留全局 browser-data）。
  */
 export function resolveSession(explicitAccount?: string): ResolvedSession {
   ensureAppDataLayout();
@@ -20,10 +19,10 @@ export function resolveSession(explicitAccount?: string): ResolvedSession {
     throw new Error('尚未配置任何账号。请先执行 xhs account add <name>。');
   }
 
-  const slug = pickAccountSlug(reg, explicitAccount) ?? null;
+  const slug = explicitAccount?.trim() || null;
   if (!slug) {
     throw new Error(
-      '无法确定本次使用的账号。请使用：--account <slug>、或命令支持的位置参数 <slug>、或先执行 xhs account use <slug>（仅注册了一个账号时可省略）。',
+      '无法确定本次使用的账号。每次调用须提供 --account <slug> 或该命令支持的位置参数 <slug>。',
     );
   }
 

@@ -11,7 +11,10 @@ import { resolveSession } from './sessionResolve.js';
 import type { ResolvedSession } from './sessionTypes.js';
 
 function sessionOrDefault(session?: ResolvedSession): ResolvedSession {
-  return session ?? resolveSession(undefined);
+  if (session) {
+    return session;
+  }
+  return resolveSession();
 }
 
 export async function implLogin(session?: ResolvedSession): Promise<string> {

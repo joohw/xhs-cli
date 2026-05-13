@@ -19,7 +19,7 @@ export type StoredAccount = {
 
 export type AccountsRegistryFile = {
   version: 1;
-  /** 默认账号 slug；无多账号或未设置时为 null */
+  /** 遗留字段；旧版曾作默认账号。CLI 不再读取，仅保持与既有 registry.json 兼容。 */
   currentAccount: string | null;
   accounts: Record<string, StoredAccount>;
 };
@@ -117,25 +117,6 @@ export function hasConfiguredAccounts(reg: AccountsRegistryFile): boolean {
   return Object.keys(reg.accounts).length > 0;
 }
 
-/**
- * 选择本次命令使用的账号 slug：显式参数、`currentAccount`，或 registry 中仅有的一条记录。
- * 均无法确定时返回 `undefined`。
- */
-export function pickAccountSlug(
-  reg: AccountsRegistryFile,
-  explicit?: string,
-): string | undefined {
-  const opt = explicit?.trim();
-  if (opt) return opt;
-  const cur = reg.currentAccount?.trim();
-  if (cur) return cur;
-  const keys = Object.keys(reg.accounts);
-  if (keys.length === 1) {
-    return keys[0];
-  }
-  return undefined;
-}
-
 /** 从左到右找 `rest` 中第一个已在 registry 的 slug */
 export function firstRegisteredSlugInRest(
   reg: AccountsRegistryFile,
@@ -219,21 +200,8 @@ export function addStoredAccount(opts: { name: string }): StoredAccount {
     policyPath,
   };
   reg.accounts[slug] = row;
-  if (!reg.currentAccount) {
-    reg.currentAccount = slug;
-  }
   saveAccountsRegistry(reg);
   return row;
-}
-
-export function setCurrentStoredAccount(slug: string): void {
-  validateAccountSlug(slug);
-  const reg = loadAccountsRegistry();
-  if (!reg.accounts[slug]) {
-    throw new Error(`未知账号: ${slug}（请先 xhs account add）`);
-  }
-  reg.currentAccount = slug;
-  saveAccountsRegistry(reg);
 }
 
 export function getStoredAccountOrThrow(slug: string): StoredAccount {
@@ -252,39 +220,22 @@ export function formatAccountListLines(): string {
     return '尚未配置账号。请先执行 xhs account add <name>。';
   }
   const lines: string[] = [];
-  const cur = reg.currentAccount ?? '';
   for (const k of keys) {
     const a = reg.accounts[k];
-    const mark = cur === k ? '* ' : '  ';
-    lines.push(`${mark}${a.name}\t会话:${a.browserDataDir}`);
+    lines.push(`${a.name}\t会话:${a.browserDataDir}`);
   }
-  if (cur) {
-    lines.push('');
-    lines.push(`当前默认账号: ${cur}`);
-  } else if (keys.length === 1) {
-    lines.push('');
-    lines.push(
-      `未设置默认账号；仅此一个已配置账号（${keys[0]}），命令将自动使用该账号会话。可用 xhs account use <name> 显式设为默认。`,
-    );
-  } else {
-    lines.push('');
-    lines.push(
-      '未设置默认账号；多账号时请用 --account / 位置参数 <slug> 或先执行 xhs account use <name>。',
-    );
-  }
+  lines.push('');
+  lines.push('各业务命令每次均须带 --account <slug> 或该命令支持的位置参数 <slug>。');
   return lines.join('\n');
 }
 
 export function formatShowAccount(slug: string): string {
   const a = getStoredAccountOrThrow(slug);
-  const reg = loadAccountsRegistry();
-  const isCur = reg.currentAccount === slug;
   return [
     `name: ${a.name}`,
     `createdAt: ${a.createdAt}`,
     `updatedAt: ${a.updatedAt}`,
     `browserDataDir: ${a.browserDataDir}`,
     `policyPath: ${a.policyPath}`,
-    `currentDefault: ${isCur}`,
   ].join('\n');
 }

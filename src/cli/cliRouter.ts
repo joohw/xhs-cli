@@ -13,10 +13,8 @@ import {
 import {
   formatAccountListLines,
   addStoredAccount,
-  setCurrentStoredAccount,
   loadAccountsRegistry,
   formatShowAccount,
-  pickAccountSlug,
   firstRegisteredSlugInRest,
   lastRegisteredSlugInRest,
 } from '../toolset/accountRegistry.js';
@@ -50,7 +48,7 @@ function printHelp(): void {
   xhs help
       显示本帮助（无子命令时也会打印本说明）
 
-  # 会话与登录（账号：--account <slug> 或与命令兼容的位置参数 <slug>；再无则 account use 或唯一已配置账号）
+  # 会话与登录（每次须指定账号：--account <slug> 或与命令兼容的位置参数 <slug>）
   xhs login [--account <name> | <name>]
   xhs metrics [<slug>] [--account <name>]
   xhs recent [<slug>] [--limit <n>]
@@ -62,12 +60,10 @@ function printHelp(): void {
   # 账号（配置存 ~/.xhs-cli/.cache/accounts/registry.json ，每账号独立 browser-data）
   xhs account list
   xhs account add <name>
-  xhs account use <name>
   xhs account show <name>
 
   # 草稿：直接 draft 创建；drafts 列表；通过后 draft post 走发帖（成功后写入本地 posted 归档）
   xhs draft [<slug>] [--account <name>] --title <标题> (--content | --content-file) [--image <路径>]...
-      （仅一个已配置账号时可省略账号）
   xhs drafts [<slug>] [--account <name>] [--status draft|approved|published]
   xhs draft show <id> [<slug>] [--account <name>]
   xhs draft approve <id> [<slug>] [--account <name>]
@@ -205,10 +201,15 @@ function runAccountCommand(tail: string[]): void {
   const sub = tail[0]?.toLowerCase()?.trim();
   const rest = tail.slice(1);
   if (!sub || sub === 'help' || sub === '--help') {
-    die(`❌ 用法: account list | add ... | use <name> | show <name>`);
+    die(`❌ 用法: account list | add ... | show <name>`);
     return;
   }
   try {
+    if (sub === 'use') {
+      die(
+        '❌ account use 已移除。每次命令请使用 --account <slug> 或该命令支持的位置参数 <slug>。',
+      );
+    }
     if (sub === 'list') {
       console.log(formatAccountListLines());
       return;
@@ -219,15 +220,6 @@ function runAccountCommand(tail: string[]): void {
         die('❌ 用法: account show <name>');
       }
       console.log(formatShowAccount(name));
-      return;
-    }
-    if (sub === 'use') {
-      const name = rest[0]?.trim();
-      if (!name) {
-        die('❌ 用法: account use <name>');
-      }
-      setCurrentStoredAccount(name);
-      console.log(`✅ 已将默认账号设为: ${name}`);
       return;
     }
     if (sub === 'add') {
@@ -303,12 +295,11 @@ async function runDraftCommand(tail: string[]): Promise<void> {
 
   try {
     const { opts, rest } = parseOpts(tail);
-    const reg = loadAccountsRegistry();
     const explicitAcc = explicitAccountFromCli(opts, rest, 'first');
-    const account = explicitAcc ?? pickAccountSlug(reg);
+    const account = explicitAcc;
     if (!account) {
       die(
-        '❌ draft 需要 --account <name>、位置参数 <slug>、或先执行 xhs account use <name>（仅注册了一个账号时可省略）',
+        '❌ draft 须指定账号：--account <name> 或位置参数 <slug>（与 metrics / post 等一致）。',
       );
     }
     const title = opts.title?.trim();

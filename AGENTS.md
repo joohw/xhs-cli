@@ -1,6 +1,6 @@
 # 给 AI / 自动化助手的说明（xhs-cli）
 
-本仓库是 **纯命令行工具**：子命令在 **`src/cli/cliRouter.ts`**，业务能力在 **`src/toolset/toolImplementations.ts`** 的 **`impl*`** 函数（无内置 Agent / MCP）。
+本仓库是 **纯命令行工具**：子命令在 **`src/cli/cliRouter.ts`**，业务能力在 **`src/toolset/`** 的 **`impl*`** 与相关模块（无内置 Agent / MCP）。
 
 ## 与外部 Agent 集成
 
@@ -18,12 +18,12 @@
 - 应用生成内容：`~/.xhs-cli/.cache/`
 - **未配置多账号时**浏览器用户数据：`~/.xhs-cli/.cache/browser-data`
 - **多账号时**每账号会话：`~/.xhs-cli/.cache/accounts/<slug>/browser-data`（详见 `README`）
-- 草稿：`~/.xhs-cli/.cache/drafts/`；发布归档：`~/.xhs-cli/.cache/published/`
+- 草稿：每账号 `~/.xhs-cli/.cache/accounts/<slug>/drafts/`（遗留根目录 `drafts/` 仍可读）；发布归档：`~/.xhs-cli/.cache/published/`
 
 **发帖**：`post` 子命令仅使用当次传入的 `--title`、`--content`（或 `--content-file`）与 `--image` 路径，不依赖待发文件队列。
 
 ## 实现位置
 
-- CLI：`src/cli/cliRouter.ts`（`runCli`）；入口：`src/cli/index.ts`
+- CLI：`src/cli/cliRouter.ts`（`runCli`）；入口：`src/cli/index.ts`。子命令包括 `recent`（创作者已发列表）、`posted`（本地发帖归档）、`detail`、`draft` / `drafts`、`draft post` 等；`published` 已移除。
 - 小红书业务：`src/toolset/xiaohongshu/*`
 - 浏览器：`src/toolset/core/browser/browser.ts`

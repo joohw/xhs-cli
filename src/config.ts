@@ -20,7 +20,7 @@ export const BROWSER_USER_DATA_DIR = join(CACHE_DIR, 'browser-data');
 export const ACCOUNTS_ROOT = join(CACHE_DIR, 'accounts');
 /** 账号注册表：`~/.xhs-cli/.cache/accounts/registry.json` */
 export const ACCOUNTS_REGISTRY_PATH = join(ACCOUNTS_ROOT, 'registry.json');
-/** 待发草稿：`~/.xhs-cli/.cache/drafts/` */
+/** 待发草稿（遗留全局目录，仅用于读取旧数据；新草稿在 `accounts/<slug>/drafts/`） */
 export const DRAFTS_ROOT = join(CACHE_DIR, 'drafts');
 /** 已发布归档：`~/.xhs-cli/.cache/published/` */
 export const PUBLISHED_ROOT = join(CACHE_DIR, 'published');

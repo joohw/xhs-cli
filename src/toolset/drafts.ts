@@ -1,8 +1,21 @@
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync, renameSync } from 'fs';
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  writeFileSync,
+  renameSync,
+  unlinkSync,
+} from 'fs';
 import { join } from 'path';
 import { randomUUID } from 'crypto';
 import { DRAFTS_ROOT, ensureAppDataLayout } from '../config.js';
-import { validateAccountSlug, getStoredAccountOrThrow } from './accountRegistry.js';
+import {
+  validateAccountSlug,
+  getStoredAccountOrThrow,
+  loadAccountsRegistry,
+  accountDraftsDir,
+} from './accountRegistry.js';
 import { postNote } from './post.js';
 import { appendPublishedRecord } from './publishedRecords.js';
 
@@ -21,8 +34,21 @@ export type DraftRecord = {
   publishedAt?: string;
 };
 
-function draftPath(id: string): string {
+function legacyDraftPath(id: string): string {
   return join(DRAFTS_ROOT, `${id}.json`);
+}
+
+function draftFilePath(account: string, id: string): string {
+  return join(accountDraftsDir(account.trim()), `${id}.json`);
+}
+
+function readDraftFile(path: string): DraftRecord | null {
+  if (!existsSync(path)) return null;
+  try {
+    return JSON.parse(readFileSync(path, 'utf-8')) as DraftRecord;
+  } catch {
+    return null;
+  }
 }
 
 function atomicWriteJson(path: string, data: DraftRecord): void {
@@ -31,23 +57,42 @@ function atomicWriteJson(path: string, data: DraftRecord): void {
   renameSync(tmp, path);
 }
 
-export function loadDraft(id: string): DraftRecord | null {
+/**
+ * 读取草稿：优先 `accounts/<slug>/drafts/<id>.json`；未传 `account` 时按 registry 顺序查找；最后尝试遗留全局 `drafts/`。
+ */
+export function loadDraft(id: string, account?: string): DraftRecord | null {
   ensureAppDataLayout();
-  const p = draftPath(id);
-  if (!existsSync(p)) return null;
-  try {
-    return JSON.parse(readFileSync(p, 'utf-8')) as DraftRecord;
-  } catch {
-    return null;
+  const opt = account?.trim();
+  if (opt) {
+    const scoped = readDraftFile(draftFilePath(opt, id));
+    if (scoped) return scoped;
+    return readDraftFile(legacyDraftPath(id));
   }
+  const reg = loadAccountsRegistry();
+  for (const slug of Object.keys(reg.accounts)) {
+    const d = readDraftFile(draftFilePath(slug, id));
+    if (d) return d;
+  }
+  return readDraftFile(legacyDraftPath(id));
 }
 
 export function saveDraft(draft: DraftRecord): void {
   ensureAppDataLayout();
-  if (!existsSync(DRAFTS_ROOT)) {
-    mkdirSync(DRAFTS_ROOT, { recursive: true });
+  const slug = draft.account.trim();
+  const dir = accountDraftsDir(slug);
+  if (!existsSync(dir)) {
+    mkdirSync(dir, { recursive: true });
   }
-  atomicWriteJson(draftPath(draft.id), draft);
+  const path = draftFilePath(slug, draft.id);
+  atomicWriteJson(path, draft);
+  const leg = legacyDraftPath(draft.id);
+  if (leg !== path && existsSync(leg)) {
+    try {
+      unlinkSync(leg);
+    } catch {
+      // 忽略删除遗留文件失败
+    }
+  }
 }
 
 export function createDraft(opts: {
@@ -78,30 +123,54 @@ export type DraftFilter = {
   status?: DraftStatus;
 };
 
-export function listDrafts(filter?: DraftFilter): DraftRecord[] {
-  ensureAppDataLayout();
-  if (!existsSync(DRAFTS_ROOT)) {
+function listJsonDraftsInDir(dir: string): DraftRecord[] {
+  if (!existsSync(dir)) {
     return [];
   }
   const out: DraftRecord[] = [];
-  for (const name of readdirSync(DRAFTS_ROOT)) {
+  for (const name of readdirSync(dir)) {
     if (!name.endsWith('.json')) continue;
-    const p = join(DRAFTS_ROOT, name);
-    try {
-      const d = JSON.parse(readFileSync(p, 'utf-8')) as DraftRecord;
-      if (filter?.account && d.account !== filter.account) continue;
-      if (filter?.status && d.status !== filter.status) continue;
-      out.push(d);
-    } catch {
-      continue;
+    const d = readDraftFile(join(dir, name));
+    if (d) out.push(d);
+  }
+  return out;
+}
+
+export function listDrafts(filter?: DraftFilter): DraftRecord[] {
+  ensureAppDataLayout();
+  const candidates: DraftRecord[] = [];
+  const reg = loadAccountsRegistry();
+
+  if (filter?.account) {
+    const acc = filter.account.trim();
+    candidates.push(...listJsonDraftsInDir(accountDraftsDir(acc)));
+    for (const d of listJsonDraftsInDir(DRAFTS_ROOT)) {
+      if (d.account === acc) {
+        candidates.push(d);
+      }
     }
+  } else {
+    for (const slug of Object.keys(reg.accounts)) {
+      candidates.push(...listJsonDraftsInDir(accountDraftsDir(slug)));
+    }
+    candidates.push(...listJsonDraftsInDir(DRAFTS_ROOT));
+  }
+
+  const seen = new Set<string>();
+  const out: DraftRecord[] = [];
+  for (const d of candidates) {
+    if (seen.has(d.id)) continue;
+    seen.add(d.id);
+    if (filter?.status && d.status !== filter.status) continue;
+    if (filter?.account && d.account !== filter.account.trim()) continue;
+    out.push(d);
   }
   out.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   return out;
 }
 
-export function approveDraft(id: string): DraftRecord {
-  const d = loadDraft(id);
+export function approveDraft(id: string, account?: string): DraftRecord {
+  const d = loadDraft(id, account);
   if (!d) {
     throw new Error(`未找到草稿: ${id}`);
   }
@@ -120,10 +189,10 @@ export function approveDraft(id: string): DraftRecord {
 }
 
 /**
- * 若发帖成功则更新草稿并写入 published 记录；失败则保持原状态。
+ * 若发帖成功则更新草稿并写入 published 目录归档；失败则保持原状态。
  */
-export async function publishDraftById(id: string): Promise<string> {
-  const d = loadDraft(id);
+export async function postDraftById(id: string, account?: string): Promise<string> {
+  const d = loadDraft(id, account);
   if (!d) {
     return `❌ 未找到草稿: ${id}`;
   }

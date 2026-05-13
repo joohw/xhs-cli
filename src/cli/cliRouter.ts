@@ -1,10 +1,7 @@
 /**
  * CLI：子命令直接调用 toolset 中的 impl*；自然语言 Agent 由外部宿主集成。
- * 无参数时进入交互模式，逐行解析与 `xhs <argv...>` 相同的命令。
  */
 import { readFileSync, existsSync } from 'fs';
-import { createInterface } from 'node:readline/promises';
-import { stdin as input, stdout as output } from 'node:process';
 import {
   implLogin,
   implGetOperationData,
@@ -26,13 +23,12 @@ import {
   listDrafts,
   loadDraft,
   approveDraft,
-  publishDraftById,
+  postDraftById,
   formatDraftListItems,
   formatDraftShow,
   type DraftStatus,
 } from '../toolset/drafts.js';
 import { formatPublishedList, listPublished } from '../toolset/publishedRecords.js';
-import { printXhsInteractiveBanner } from './banner.js';
 
 class CliError extends Error {
   constructor(message: string) {
@@ -45,85 +41,39 @@ function die(msg: string): never {
   throw new CliError(msg);
 }
 
-/** `readline.question` 在 Ctrl+C 时会抛出 AbortError，视为正常结束而非业务错误 */
-export function isReadlineAbortError(e: unknown): boolean {
-  if (e === null || typeof e !== 'object') {
-    return false;
-  }
-  const err = e as { name?: string; code?: string };
-  return err.name === 'AbortError' || err.code === 'ABORT_ERR';
-}
-
-/** 类 shell 分词：支持双引号、单引号包裹含空格的参数 */
-function splitShellLine(line: string): string[] {
-  const out: string[] = [];
-  let cur = '';
-  let quote: '"' | "'" | null = null;
-  for (let i = 0; i < line.length; i++) {
-    const c = line[i];
-    if (quote) {
-      if (c === quote) {
-        quote = null;
-      } else {
-        cur += c;
-      }
-      continue;
-    }
-    if (c === '"' || c === "'") {
-      quote = c;
-      continue;
-    }
-    if (/\s/.test(c)) {
-      if (cur.length > 0) {
-        out.push(cur);
-        cur = '';
-      }
-      continue;
-    }
-    cur += c;
-  }
-  if (cur.length > 0) {
-    out.push(cur);
-  }
-  return out;
-}
-
 function printHelp(): void {
   console.error(`xhs-cli — 小红书命令行工具（多账号 / 草稿 / 本地归档）
 
 用法与说明:
-  xhs
-      进入交互模式；提示符 xhs> ，exit / quit 退出；Ctrl+C 正常结束
   xhs help
-      显示本帮助
+      显示本帮助（无子命令时也会打印本说明）
 
   # 会话与登录（可加 --account / login <slug>；未指定时用默认账号；仅一个已配置账号时自动选用；无账号配置时沿用 ~/.xhs-cli/.cache/browser-data）
   xhs login [--account <name> | <name>]
-  xhs metrics [--account <name>]
-  xhs posted [--account <name>] [--limit <n>]
-  xhs note-detail <noteId> [--account <name>]
+  xhs metrics --account <name>
+  xhs recent [--account <name>] [--limit <n>]
+  xhs posted [--account <name>]
+  xhs detail <noteId> [--account <name>]
   xhs post (--title <标题> (--content <正文> | --content-file <路径>))
               [--image <路径>]... [--publish | --publish=true|false] [--account <name>]
 
   # 账号（配置存 ~/.xhs-cli/.cache/accounts/registry.json ，每账号独立 browser-data）
   xhs account list
-  xhs account add <name> [--display-name <显示名>] [--role <role>]
+  xhs account add <name>
   xhs account use <name>
   xhs account current
   xhs account show <name>
 
-  # 草稿：创建 → approve → publish（publish 仅在成功发布后更新状态并写入 published）
-  xhs draft create [--account <name>] --title <标题> (--content | --content-file) [--image <路径>]...
+  # 草稿：直接 draft 创建；drafts 列表；通过后 draft post 走发帖（成功后写入本地 posted 归档）
+  xhs draft [--account <name>] --title <标题> (--content | --content-file) [--image <路径>]...
       （registry 仅一个账号时可省略 --account）
-  xhs draft list [--account <name>] [--status draft|approved|published]
-  xhs draft show <id>
-  xhs draft approve <id>
-  xhs draft publish <id>
-
-  xhs published list [--account <name>]
+  xhs drafts [--account <name>] [--status draft|approved|published]
+  xhs draft show <id> [--account <name>]
+  xhs draft approve <id> [--account <name>]
+  xhs draft post <id> [--account <name>]
 
 数据目录见 ~/.xhs-cli/.cache/（详见 README 与 src/config.ts）。
-备注：不会在无人确认时擅自发帖；草稿 publish / post --publish 由人工按需触发。
+备注：不会在无人确认时擅自发帖；xhs post 的 --publish 与 draft post 由人工按需触发。
 `);
 }
 
@@ -271,13 +221,9 @@ function runAccountCommand(tail: string[]): void {
     if (sub === 'add') {
       const name = rest[0]?.trim();
       if (!name) {
-        die('❌ 用法: account add <name> [--display-name ...] [--role ...]');
+        die('❌ 用法: account add <name>');
       }
-      const { opts } = parseOpts(rest.slice(1));
-      const displayName =
-        opts['display-name']?.trim() || opts.displayName?.trim() || name;
-      const role = opts.role?.trim() || 'general';
-      addStoredAccount({ name, displayName, role });
+      addStoredAccount({ name });
       console.log(`✅ 已添加账号: ${name}`);
       return;
     }
@@ -288,111 +234,117 @@ function runAccountCommand(tail: string[]): void {
 }
 
 async function runDraftCommand(tail: string[]): Promise<void> {
-  const sub = tail[0]?.toLowerCase()?.trim();
-  const rest = tail.slice(1);
-  if (!sub) {
-    die('❌ 用法: draft create | list | show | approve | publish ...');
-    return;
+  const sub0 = tail[0]?.toLowerCase()?.trim();
+  if (sub0 === 'create') {
+    die('❌ 已移除子命令 create，请使用：xhs draft [--account <name>] --title <标题> (--content | --content-file) …');
   }
+  if (sub0 === 'list') {
+    die('❌ 请使用 xhs drafts 列出草稿');
+  }
+  if (sub0 === 'publish') {
+    die('❌ draft publish 已改为：xhs draft post <id> [--account <name>]');
+  }
+
+  const draftSubcommands = new Set(['show', 'approve', 'post']);
+  if (sub0 && draftSubcommands.has(sub0)) {
+    const rest = tail.slice(1);
+    try {
+      if (sub0 === 'show') {
+        const id = rest[0]?.trim();
+        if (!id) {
+          die('❌ 用法: draft show <id> [--account <name>]');
+        }
+        const { opts } = parseOpts(rest.slice(1));
+        const d = loadDraft(id, opts.account?.trim());
+        if (!d) {
+          die(`❌ 未找到草稿: ${id}`);
+        }
+        console.log(formatDraftShow(d));
+        return;
+      }
+      if (sub0 === 'approve') {
+        const id = rest[0]?.trim();
+        if (!id) {
+          die('❌ 用法: draft approve <id> [--account <name>]');
+        }
+        const { opts } = parseOpts(rest.slice(1));
+        approveDraft(id, opts.account?.trim());
+        console.log(`✅ 已批准: ${id}`);
+        return;
+      }
+      if (sub0 === 'post') {
+        const id = rest[0]?.trim();
+        if (!id) {
+          die('❌ 用法: draft post <id> [--account <name>]');
+        }
+        const { opts } = parseOpts(rest.slice(1));
+        console.log(await postDraftById(id, opts.account?.trim()));
+        return;
+      }
+    } catch (e) {
+      die(`❌ ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+
   try {
-    if (sub === 'create') {
-      const { opts } = parseOpts(rest);
-      const explicitAcc = opts.account?.trim();
-      const account = explicitAcc ?? pickAccountSlug(loadAccountsRegistry());
-      if (!account) {
-        die(
-          '❌ draft create 需要 --account <name>（已配置多个账号时须指定，或先执行 xhs account use <name>）',
-        );
-      }
-      const title = opts.title?.trim();
-      if (!title) {
-        die('❌ draft create 需要 --title <标题>');
-      }
-      let content = opts.content ?? '';
-      if (opts['content-file']) {
-        const p = opts['content-file'];
-        if (!existsSync(p)) {
-          die(`❌ 找不到文件: ${p}`);
-        }
-        content = readFileSync(p, 'utf-8');
-      }
-      if (!content.trim()) {
-        die('❌ 请提供 --content 或 --content-file');
-      }
-      const imagePaths = collectImagePaths(rest);
-      const d = createDraft({
-        account,
-        title,
-        content,
-        imagePaths: imagePaths.length > 0 ? imagePaths : undefined,
-      });
-      console.log(`✅ 草稿已创建: ${d.id}`);
-      return;
-    }
-    if (sub === 'list') {
-      const { opts } = parseOpts(rest);
-      let filter: DraftStatus | undefined;
-      if (opts.status?.trim()) {
-        const s = opts.status.trim().toLowerCase();
-        if (s !== 'draft' && s !== 'approved' && s !== 'published') {
-          die('❌ --status 必须是 draft | approved | published');
-        }
-        filter = s as DraftStatus;
-      }
-      console.log(
-        formatDraftListItems(
-          listDrafts({
-            account: opts.account?.trim(),
-            status: filter,
-          }),
-        ),
+    const { opts } = parseOpts(tail);
+    const explicitAcc = opts.account?.trim();
+    const account = explicitAcc ?? pickAccountSlug(loadAccountsRegistry());
+    if (!account) {
+      die(
+        '❌ draft 需要 --account <name>（已配置多个账号时须指定，或先执行 xhs account use <name>）',
       );
-      return;
     }
-    if (sub === 'show') {
-      const id = rest[0]?.trim();
-      if (!id) {
-        die('❌ 用法: draft show <id>');
-      }
-      const d = loadDraft(id);
-      if (!d) {
-        die(`❌ 未找到草稿: ${id}`);
-      }
-      console.log(formatDraftShow(d));
-      return;
+    const title = opts.title?.trim();
+    if (!title) {
+      die('❌ draft 需要 --title <标题>');
     }
-    if (sub === 'approve') {
-      const id = rest[0]?.trim();
-      if (!id) {
-        die('❌ 用法: draft approve <id>');
+    let content = opts.content ?? '';
+    if (opts['content-file']) {
+      const p = opts['content-file'];
+      if (!existsSync(p)) {
+        die(`❌ 找不到文件: ${p}`);
       }
-      approveDraft(id);
-      console.log(`✅ 已批准: ${id}`);
-      return;
+      content = readFileSync(p, 'utf-8');
     }
-    if (sub === 'publish') {
-      const id = rest[0]?.trim();
-      if (!id) {
-        die('❌ 用法: draft publish <id>');
-      }
-      console.log(await publishDraftById(id));
-      return;
+    if (!content.trim()) {
+      die('❌ 请提供 --content 或 --content-file');
     }
+    const imagePaths = collectImagePaths(tail);
+    const d = createDraft({
+      account,
+      title,
+      content,
+      imagePaths: imagePaths.length > 0 ? imagePaths : undefined,
+    });
+    console.log(`✅ 草稿已创建: ${d.id}`);
   } catch (e) {
     die(`❌ ${e instanceof Error ? e.message : String(e)}`);
   }
-  die(`❌ 未知 draft 子命令: ${sub}`);
 }
 
-function runPublishedCommand(tail: string[]): void {
-  const sub = tail[0]?.toLowerCase()?.trim();
-  const rest = tail.slice(1);
-  if (!sub || sub === 'list') {
-    const { opts } = parseOpts(rest);
-    console.log(formatPublishedList(listPublished(opts.account?.trim())));
-    return;
+function runDraftsCommand(tail: string[]): void {
+  try {
+    const { opts } = parseOpts(tail);
+    let filter: DraftStatus | undefined;
+    if (opts.status?.trim()) {
+      const s = opts.status.trim().toLowerCase();
+      if (s !== 'draft' && s !== 'approved' && s !== 'published') {
+        die('❌ --status 必须是 draft | approved | published');
+      }
+      filter = s as DraftStatus;
+    }
+    console.log(
+      formatDraftListItems(
+        listDrafts({
+          account: opts.account?.trim(),
+          status: filter,
+        }),
+      ),
+    );
+  } catch (e) {
+    die(`❌ ${e instanceof Error ? e.message : String(e)}`);
   }
-  die('❌ 用法: published list [--account <name>]');
 }
 
 /**
@@ -410,13 +362,17 @@ export async function runOneCommand(argv: string[]): Promise<void> {
     runAccountCommand(tail);
     return;
   }
+  if (cmd === 'drafts') {
+    runDraftsCommand(tail);
+    return;
+  }
   if (cmd === 'draft') {
     await runDraftCommand(tail);
     return;
   }
+
   if (cmd === 'published') {
-    runPublishedCommand(tail);
-    return;
+    die('❌ published 已移除，请使用：xhs posted [--account <name>]');
   }
 
   if (cmd === 'login') {
@@ -427,11 +383,21 @@ export async function runOneCommand(argv: string[]): Promise<void> {
   }
   if (cmd === 'metrics') {
     const { opts } = parseOpts(tail);
-    console.log(await implGetOperationData(resolveSessionCli(opts.account)));
+    const account = opts.account?.trim();
+    if (!account) {
+      die('❌ metrics 必须指定 --account <name>');
+    }
+    console.log(await implGetOperationData(resolveSessionCli(account)));
     return;
   }
 
   if (cmd === 'posted') {
+    const { opts } = parseOpts(tail);
+    console.log(formatPublishedList(listPublished(opts.account?.trim())));
+    return;
+  }
+
+  if (cmd === 'recent') {
     const { opts } = parseOpts(tail);
     const lim = opts.limit !== undefined ? parseInt(opts.limit, 10) : undefined;
     if (opts.limit !== undefined && (Number.isNaN(lim!) || lim! < 1)) {
@@ -443,11 +409,11 @@ export async function runOneCommand(argv: string[]): Promise<void> {
     return;
   }
 
-  if (cmd === 'note-detail') {
+  if (cmd === 'detail' || cmd === 'note-detail') {
     const { opts, rest } = parseOpts(tail);
     const id = rest[0]?.trim();
     if (!id) {
-      die('❌ 用法: note-detail <noteId> [--account <name>]');
+      die('❌ 用法: detail <noteId> [--account <name>]');
     }
     console.log(await implGetNoteDetail(id, resolveSessionCli(opts.account)));
     return;
@@ -487,49 +453,7 @@ export async function runOneCommand(argv: string[]): Promise<void> {
     return;
   }
 
-  die(`❌ 未知命令 “${cmd}”。输入 help 查看用法。`);
-}
-
-async function runInteractiveLoop(): Promise<void> {
-  const rl = createInterface({ input, output, terminal: true });
-  printXhsInteractiveBanner();
-  console.error('交互模式：account / draft / published；login [--account | <name>]；metrics；posted；note-detail；post；help；exit。\n');
-  try {
-    for (;;) {
-      let line: string;
-      try {
-        line = await rl.question('xhs> ');
-      } catch (e) {
-        if (isReadlineAbortError(e)) {
-          break;
-        }
-        throw e;
-      }
-      const trimmed = line.trim();
-      if (!trimmed) {
-        continue;
-      }
-      if (/^(exit|quit)$/i.test(trimmed)) {
-        break;
-      }
-      if (/^help$/i.test(trimmed)) {
-        printHelp();
-        continue;
-      }
-      const argv = splitShellLine(trimmed);
-      try {
-        await runOneCommand(argv);
-      } catch (e) {
-        if (e instanceof CliError) {
-          console.error(e.message);
-        } else {
-          console.error(e instanceof Error ? e.message : e);
-        }
-      }
-    }
-  } finally {
-    rl.close();
-  }
+  die(`❌ 未知命令 “${cmd}”。请使用 xhs help 查看用法。`);
 }
 
 function handleCliError(e: unknown): void {
@@ -542,8 +466,9 @@ function handleCliError(e: unknown): void {
 
 export async function runCli(argv: string[]): Promise<void> {
   if (argv.length === 0) {
-    await runInteractiveLoop();
-    return;
+    console.error('❌ 请提供子命令，例如 xhs help、xhs login …\n');
+    printHelp();
+    process.exit(1);
   }
 
   if (argv[0] === 'help' || argv[0] === '--help' || argv[0] === '-h') {

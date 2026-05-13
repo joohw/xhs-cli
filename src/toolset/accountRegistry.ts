@@ -11,8 +11,6 @@ export const ACCOUNT_SLUG_RE = /^[a-zA-Z0-9._-]+$/;
 
 export type StoredAccount = {
   name: string;
-  displayName: string;
-  role: string;
   createdAt: string;
   updatedAt: string;
   browserDataDir: string;
@@ -46,6 +44,27 @@ function defaultRegistry(): AccountsRegistryFile {
   };
 }
 
+function normalizeStoredAccount(slug: string, raw: unknown): StoredAccount {
+  const r = raw as Record<string, unknown>;
+  const now = new Date().toISOString();
+  const root = join(CACHE_DIR, 'accounts', slug);
+  const browserDefault = join(root, 'browser-data');
+  const policyDefault = join(root, 'policy.md');
+  return {
+    name: typeof r.name === 'string' && r.name.trim() ? r.name.trim() : slug,
+    createdAt: typeof r.createdAt === 'string' ? r.createdAt : now,
+    updatedAt: typeof r.updatedAt === 'string' ? r.updatedAt : now,
+    browserDataDir:
+      typeof r.browserDataDir === 'string' && r.browserDataDir.trim()
+        ? r.browserDataDir.trim()
+        : browserDefault,
+    policyPath:
+      typeof r.policyPath === 'string' && r.policyPath.trim()
+        ? r.policyPath.trim()
+        : policyDefault,
+  };
+}
+
 export function loadAccountsRegistry(): AccountsRegistryFile {
   ensureAppDataLayout();
   if (!existsSync(ACCOUNTS_REGISTRY_PATH)) {
@@ -61,7 +80,18 @@ export function loadAccountsRegistry(): AccountsRegistryFile {
     ) {
       return defaultRegistry();
     }
-    return parsed;
+    const accounts: Record<string, StoredAccount> = {};
+    for (const slug of Object.keys(parsed.accounts)) {
+      accounts[slug] = normalizeStoredAccount(slug, parsed.accounts[slug]);
+    }
+    return {
+      version: 1,
+      currentAccount:
+        typeof parsed.currentAccount === 'string' && parsed.currentAccount.trim()
+          ? parsed.currentAccount.trim()
+          : null,
+      accounts,
+    };
   } catch {
     return defaultRegistry();
   }
@@ -122,6 +152,11 @@ export function accountRootDir(slug: string): string {
   return join(CACHE_DIR, 'accounts', slug);
 }
 
+/** 某账号草稿目录：`~/.xhs-cli/.cache/accounts/<slug>/drafts/` */
+export function accountDraftsDir(slug: string): string {
+  return join(accountRootDir(slug), 'drafts');
+}
+
 /** 写入 policy.md（若缺失） */
 export function ensureDefaultPolicy(policyPath: string): void {
   if (existsSync(policyPath)) {
@@ -134,11 +169,7 @@ export function ensureDefaultPolicy(policyPath: string): void {
   writeFileSync(policyPath, DEFAULT_POLICY.trimStart(), 'utf-8');
 }
 
-export function addStoredAccount(opts: {
-  name: string;
-  displayName: string;
-  role: string;
-}): StoredAccount {
+export function addStoredAccount(opts: { name: string }): StoredAccount {
   validateAccountSlug(opts.name);
   const slug = opts.name.trim();
   const reg = loadAccountsRegistry();
@@ -154,8 +185,6 @@ export function addStoredAccount(opts: {
   const now = new Date().toISOString();
   const row: StoredAccount = {
     name: slug,
-    displayName: opts.displayName.trim() || slug,
-    role: opts.role.trim() || 'general',
     createdAt: now,
     updatedAt: now,
     browserDataDir,
@@ -199,9 +228,7 @@ export function formatAccountListLines(): string {
   for (const k of keys) {
     const a = reg.accounts[k];
     const mark = cur === k ? '* ' : '  ';
-    lines.push(
-      `${mark}${a.name}\t显示名:${a.displayName}\trole:${a.role}\t会话:${a.browserDataDir}`,
-    );
+    lines.push(`${mark}${a.name}\t会话:${a.browserDataDir}`);
   }
   if (cur) {
     lines.push('');
@@ -226,8 +253,6 @@ export function formatShowAccount(slug: string): string {
   const isCur = reg.currentAccount === slug;
   return [
     `name: ${a.name}`,
-    `displayName: ${a.displayName}`,
-    `role: ${a.role}`,
     `createdAt: ${a.createdAt}`,
     `updatedAt: ${a.updatedAt}`,
     `browserDataDir: ${a.browserDataDir}`,

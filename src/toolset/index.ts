@@ -7,25 +7,41 @@ import { getNoteDetail } from './get_note_detail.js';
 import { formatUserProfileText } from './get_profile.js';
 import { getRecentPosts } from './get_recent_posts.js';
 import { postNote, type PostNoteArgs } from './post.js';
+import { resolveSession } from './sessionResolve.js';
+import type { ResolvedSession } from './sessionTypes.js';
 
-export async function implLogin(): Promise<string> {
-  const userProfile = await login();
+function sessionOrDefault(session?: ResolvedSession): ResolvedSession {
+  return session ?? resolveSession(undefined);
+}
+
+export async function implLogin(session?: ResolvedSession): Promise<string> {
+  const s = sessionOrDefault(session);
+  const userProfile = await login(s.browserUserDataDir);
   if (userProfile) {
     return `✅ 登录成功\n${formatUserProfileText(userProfile)}`;
   }
   return '❌ 登录失败';
 }
 
-export async function implGetOperationData(): Promise<string> {
-  return getOperationData();
+export async function implGetOperationData(session?: ResolvedSession): Promise<string> {
+  const s = sessionOrDefault(session);
+  return getOperationData(s);
 }
 
-export async function implPosted(limit?: number): Promise<string> {
-  return getRecentPosts(limit);
+export async function implPosted(
+  limit: number | undefined,
+  session?: ResolvedSession,
+): Promise<string> {
+  const s = sessionOrDefault(session);
+  return getRecentPosts(s, limit);
 }
 
-export async function implGetNoteDetail(noteId: string): Promise<string> {
-  return getNoteDetail(noteId);
+export async function implGetNoteDetail(
+  noteId: string,
+  session?: ResolvedSession,
+): Promise<string> {
+  const s = sessionOrDefault(session);
+  return getNoteDetail(noteId, s);
 }
 
 export async function implPost(args: PostNoteArgs): Promise<string> {
@@ -36,3 +52,6 @@ export async function implPost(args: PostNoteArgs): Promise<string> {
     return `❌ ${e instanceof Error ? e.message : String(e)}`;
   }
 }
+
+export { resolveSession };
+export type { ResolvedSession };

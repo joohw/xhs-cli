@@ -102,8 +102,8 @@ async function waitForLogin(page: Page, timeout: number = 180000): Promise<boole
 
 
 
-// 主登录函数
-async function login(): Promise<UserProfile | null> {
+// 主登录函数（userDataDir 可选：多账号时传入 ~/.xhs-cli/.cache/accounts/<slug>/browser-data）
+async function login(userDataDir?: string): Promise<UserProfile | null> {
   let browser: Browser | null = null;
   try {
     // 登录时使用非无头模式，让用户可以看到并操作
@@ -124,7 +124,7 @@ async function login(): Promise<UserProfile | null> {
       '--no-default-browser-check',
       '--disable-infobars',
     ];
-    browser = await launchBrowser(false, loginExtraArgs);
+    browser = await launchBrowser(false, loginExtraArgs, userDataDir);
     const page = await browser.newPage();
     await page.goto('https://creator.xiaohongshu.com/new/home', {
       waitUntil: 'domcontentloaded',

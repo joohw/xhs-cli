@@ -45,16 +45,21 @@ function findChromePath(): string | null {
 }
 
 
-// 获取统一的用户数据目录（确保所有浏览器实例共享 cookie；位于 ~/.xhs-cli/.cache/browser-data）
-export function getUserDataDir(): string {
+// 获取可选的 userDataDir；未传入时仍为全局默认 ~/.xhs-cli/.cache/browser-data
+export function getUserDataDir(override?: string): string {
   ensureAppDataLayout();
-  return BROWSER_USER_DATA_DIR;
+  return override ?? BROWSER_USER_DATA_DIR;
 }
 
+
 // 启动浏览器（支持无头模式）
-export async function launchBrowser(headless: boolean = true, extraArgs: string[] = []): Promise<Browser> {
+export async function launchBrowser(
+  headless: boolean = true,
+  extraArgs: string[] = [],
+  userDataDirOverride?: string,
+): Promise<Browser> {
   const chromePath = findChromePath();
-  const userDataDir = getUserDataDir();
+  const userDataDir = getUserDataDir(userDataDirOverride);
   if (!existsSync(userDataDir)) {
     mkdirSync(userDataDir, { recursive: true });
   }
@@ -124,8 +129,10 @@ export async function launchBrowser(headless: boolean = true, extraArgs: string[
 
 
 // 创建已登录的页面（无头模式）
-export async function createLoggedInPage(): Promise<Page> {
-  const browser = await launchBrowser(true);
+export async function createLoggedInPage(
+  browserUserDataDir?: string,
+): Promise<Page> {
+  const browser = await launchBrowser(true, [], browserUserDataDir);
   const page = await browser.newPage();
   // 访问创作者中心首页验证登录状态
   await page.goto('https://creator.xiaohongshu.com/new/home', {
@@ -161,9 +168,10 @@ export async function withBrowser<T>(
 
 // 执行已登录的页面操作（无头模式，自动验证登录状态）
 export async function withLoggedInPage<T>(
-  callback: (page: Page) => Promise<T>
+  callback: (page: Page) => Promise<T>,
+  browserUserDataDir?: string,
 ): Promise<T> {
-  const browser = await launchBrowser(true);
+  const browser = await launchBrowser(true, [], browserUserDataDir);
   try {
     const page = await browser.newPage();
     await page.goto('https://creator.xiaohongshu.com/new/home', {

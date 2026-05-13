@@ -87,6 +87,8 @@ export type PostNoteArgs = {
    * 为 true 时在填表后自动点击页面「发布」按钮；默认 false，仅填表并提示在浏览器中手动发布或修改。
    */
   publish?: boolean;
+  /** 可选：多账号会话 Chrome userDataDir */
+  browserUserDataDir?: string;
 };
 
 /** 等待主「发布」按钮可点并点击（与发布页红色「发布」按钮文案一致） */
@@ -142,7 +144,7 @@ export async function postNote(args: PostNoteArgs): Promise<PostNoteResult> {
   const imagePaths = [...args.imagePaths];
   const autoPublish = args.publish === true;
 
-  const browser = await launchBrowser(false);
+  const browser = await launchBrowser(false, [], args.browserUserDataDir);
   try {
     const page = await browser.newPage();
     await page.goto('https://creator.xiaohongshu.com/new/home', {

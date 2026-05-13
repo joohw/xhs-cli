@@ -1,6 +1,8 @@
 import { withLoggedInPage } from '../browser/index.js';
 import type { Page } from 'puppeteer-core';
 import { saveToCache, loadFromCache } from '../utils/cache.js';
+import { prefixedCacheFilename } from './cachePaths.js';
+import type { ResolvedSession } from './sessionTypes.js';
 
 interface NoteDetailTextCache {
   text: string;
@@ -100,19 +102,28 @@ async function getNoteDetailById(page: Page, noteId: string): Promise<ExtractedN
   return detail;
 }
 
-export async function getNoteDetail(noteId: string): Promise<string> {
+export async function getNoteDetail(
+  noteId: string,
+  session: ResolvedSession,
+): Promise<string> {
   const id = normalizeNoteId(noteId);
   if (!id) {
     throw new Error('noteId 不能为空');
   }
 
-  const cacheFilename = `notes/${id}_detail_text.json`;
+  const cacheFilename = prefixedCacheFilename(
+    session.cachePathPrefix,
+    `notes/${id}_detail_text.json`,
+  );
   const cached = loadFromCache<NoteDetailTextCache>(cacheFilename);
   if (cached?.text?.trim()) {
     return cached.text;
   }
 
-  const detail = await withLoggedInPage(async (page) => getNoteDetailById(page, id));
+  const detail = await withLoggedInPage(
+    async (page) => getNoteDetailById(page, id),
+    session.browserUserDataDir,
+  );
   if (!detail) {
     return `未找到笔记详情: ${id}`;
   }

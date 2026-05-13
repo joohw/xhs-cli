@@ -13,8 +13,17 @@ export const APP_HOME = join(homedir(), '.xhs-cli');
  */
 export const CACHE_DIR = join(APP_HOME, '.cache');
 
-/** Puppeteer 用户数据目录（与 getUserDataDir 一致） */
+/** Puppeteer 用户数据目录（单账号或未选择多账号时的默认会话目录） */
 export const BROWSER_USER_DATA_DIR = join(CACHE_DIR, 'browser-data');
+
+/** 多账号元数据目录（会话目录在每账号子目录 browser-data） */
+export const ACCOUNTS_ROOT = join(CACHE_DIR, 'accounts');
+/** 账号注册表：`~/.xhs-cli/.cache/accounts/registry.json` */
+export const ACCOUNTS_REGISTRY_PATH = join(ACCOUNTS_ROOT, 'registry.json');
+/** 待发草稿：`~/.xhs-cli/.cache/drafts/` */
+export const DRAFTS_ROOT = join(CACHE_DIR, 'drafts');
+/** 已发布归档：`~/.xhs-cli/.cache/published/` */
+export const PUBLISHED_ROOT = join(CACHE_DIR, 'published');
 
 // 笔记缓存目录
 export const NOTES_CACHE_DIR = join(CACHE_DIR, 'notes');
@@ -36,6 +45,12 @@ export function ensureAppDataLayout(): void {
   }
   if (!existsSync(SANDBOX_DIR)) {
     mkdirSync(SANDBOX_DIR, { recursive: true });
+  }
+  if (!existsSync(DRAFTS_ROOT)) {
+    mkdirSync(DRAFTS_ROOT, { recursive: true });
+  }
+  if (!existsSync(PUBLISHED_ROOT)) {
+    mkdirSync(PUBLISHED_ROOT, { recursive: true });
   }
 }
 

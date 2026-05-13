@@ -1,6 +1,8 @@
 import { withLoggedInPage } from '../browser/index.js';
 import type { Page } from 'puppeteer-core';
 import { saveToCache, loadFromCache } from '../utils/cache.js';
+import { prefixedCacheFilename } from './cachePaths.js';
+import type { ResolvedSession } from './sessionTypes.js';
 
 interface TrafficSourceRow {
   name: string;
@@ -236,10 +238,14 @@ export class XHSOperationDataFetcher {
 
 /**
  * 获取运营数据（纯文本；同日缓存命中则直接返回文本）
+ * @param session 浏览器目录与缓存命名空间（多账号）
  */
-export async function getOperationData(): Promise<string> {
+export async function getOperationData(session: ResolvedSession): Promise<string> {
   const today = new Date().toISOString().split('T')[0];
-  const cacheFilename = `operation_data/${today}_text.json`;
+  const cacheFilename = prefixedCacheFilename(
+    session.cachePathPrefix,
+    `operation_data/${today}_text.json`,
+  );
   const cached = loadFromCache<OperationDataTextCache>(cacheFilename);
   if (cached && cached.date === today && cached.text?.trim()) {
     return cached.text;
@@ -248,7 +254,7 @@ export async function getOperationData(): Promise<string> {
   const snapshot = await withLoggedInPage(async (page: Page) => {
     const fetcher = new XHSOperationDataFetcher(page);
     return await fetcher.fetchAllData();
-  });
+  }, session.browserUserDataDir);
   const text = formatOperationSnapshot(snapshot);
   saveToCache(cacheFilename, { date: today, text });
   return text;

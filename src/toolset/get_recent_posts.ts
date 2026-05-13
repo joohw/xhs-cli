@@ -1,6 +1,8 @@
 import type { Page, ElementHandle } from 'puppeteer-core';
 import { withLoggedInPage } from '../browser/index.js';
 import { saveToCache, loadFromCache } from '../utils/cache.js';
+import { prefixedCacheFilename } from './cachePaths.js';
+import type { ResolvedSession } from './sessionTypes.js';
 
 interface NoteRaw {
   noteId: string;
@@ -45,7 +47,11 @@ async function getInteractionCount(page: Page, card: ElementHandle, type: string
   return '0';
 }
 
-async function scrapeRecentPosts(page: Page, limit?: number): Promise<string> {
+async function scrapeRecentPosts(
+  page: Page,
+  session: ResolvedSession,
+  limit?: number,
+): Promise<string> {
   await page.goto('https://creator.xiaohongshu.com/new/note-manager', {
     waitUntil: 'domcontentloaded',
     timeout: 30000,
@@ -67,7 +73,7 @@ async function scrapeRecentPosts(page: Page, limit?: number): Promise<string> {
     const noteId: string = impressionData?.noteTarget?.value?.noteId ?? '';
     if (!noteId) continue;
 
-    const cacheKey = `notes/${noteId}.json`;
+    const cacheKey = prefixedCacheFilename(session.cachePathPrefix, `notes/${noteId}.json`);
     const cached = loadFromCache<NoteRaw>(cacheKey);
 
     const views    = await getInteractionCount(page, card, 'views');
@@ -117,6 +123,9 @@ async function scrapeRecentPosts(page: Page, limit?: number): Promise<string> {
   return results.map(formatNote).join('\n\n');
 }
 
-export async function getRecentPosts(limit?: number): Promise<string> {
-  return withLoggedInPage((page) => scrapeRecentPosts(page, limit));
+export async function getRecentPosts(
+  session: ResolvedSession,
+  limit?: number,
+): Promise<string> {
+  return withLoggedInPage((page) => scrapeRecentPosts(page, session, limit), session.browserUserDataDir);
 }

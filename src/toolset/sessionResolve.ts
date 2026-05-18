@@ -6,12 +6,11 @@ import {
 import type { ResolvedSession } from './sessionTypes.js';
 
 /**
- * 解析本次命令使用的 Puppeteer userDataDir 与缓存前缀。
+ * 解析本次命令使用的账号 slug。
  *
- * 须已在 registry 中配置账号，且 **`explicitAccount` 必须为非空 slug**（由 CLI 的 `--account` 或位置参数传入）。
- * 不使用注册表中的默认字段推断账号。无法确定 slug 时抛错（不使用遗留全局 browser-data）。
+ * 优先级：`--account` 显式指定 → registry `currentAccount`（须已通过 `xhs account use` 设置）。
  */
-export function resolveSession(explicitAccount?: string): ResolvedSession {
+export function resolveAccountSlug(explicitAccount?: string): string {
   ensureAppDataLayout();
   const reg = loadAccountsRegistry();
 
@@ -19,19 +18,32 @@ export function resolveSession(explicitAccount?: string): ResolvedSession {
     throw new Error('尚未配置任何账号。请先执行 xhs account add <name>。');
   }
 
-  const slug = explicitAccount?.trim() || null;
-  if (!slug) {
-    throw new Error(
-      '无法确定本次使用的账号。每次调用须提供 --account <slug> 或该命令支持的位置参数 <slug>。',
-    );
+  const explicit = explicitAccount?.trim();
+  if (explicit) {
+    if (!reg.accounts[explicit]) {
+      throw new Error(`未知账号: ${explicit}。可用 xhs account list 查看已配置账号。`);
+    }
+    return explicit;
   }
 
-  const acc = reg.accounts[slug];
-  if (!acc) {
-    throw new Error(`未知账号: ${slug}。可用 xhs account list 查看已配置账号。`);
+  const current = reg.currentAccount?.trim();
+  if (current && reg.accounts[current]) {
+    return current;
   }
 
+  throw new Error(
+    '未设置当前账号。请先执行 xhs account use <slug>，或使用 --account <slug> 临时指定。',
+  );
+}
+
+/**
+ * 解析本次命令使用的 Puppeteer userDataDir 与缓存前缀。
+ */
+export function resolveSession(explicitAccount?: string): ResolvedSession {
+  const slug = resolveAccountSlug(explicitAccount);
+  const acc = loadAccountsRegistry().accounts[slug];
   return {
+    account: slug,
     browserUserDataDir: acc.browserDataDir,
     cachePathPrefix: `accounts/${slug}/`,
   };

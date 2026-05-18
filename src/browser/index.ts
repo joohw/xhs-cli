@@ -1,6 +1,6 @@
 // 浏览器工具模块 - 支持无头模式访问
 import puppeteer, { Browser, Page } from 'puppeteer-core';
-import { existsSync, mkdirSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { homedir, platform } from 'os';
 import { BROWSER_USER_DATA_DIR, ensureAppDataLayout } from '../config.js';
@@ -51,6 +51,34 @@ export function getUserDataDir(override?: string): string {
   return override ?? BROWSER_USER_DATA_DIR;
 }
 
+const PROFILE_IN_USE_RE = /already running for/i;
+
+/** 同一 userDataDir 已有 Chrome 时，通过 DevTools 端口复用实例（常见于 post 后 disconnect 未关窗） */
+async function connectToRunningBrowser(userDataDir: string): Promise<Browser | null> {
+  const portFile = join(userDataDir, 'DevToolsActivePort');
+  if (!existsSync(portFile)) {
+    return null;
+  }
+  try {
+    const [portLine] = readFileSync(portFile, 'utf-8').trim().split('\n');
+    if (!portLine || !/^\d+$/.test(portLine)) {
+      return null;
+    }
+    return await puppeteer.connect({
+      browserURL: `http://127.0.0.1:${portLine}`,
+      defaultViewport: null,
+    });
+  } catch {
+    return null;
+  }
+}
+
+function profileInUseError(userDataDir: string): Error {
+  return new Error(
+    `该账号的 Chrome 配置目录已被占用，无法再次启动浏览器：\n${userDataDir}\n` +
+      '请先关闭使用此配置目录的 Chrome 窗口（含上次 xhs post 未关的窗口），或结束残留 Chrome 进程后重试。',
+  );
+}
 
 // 启动浏览器（支持无头模式）
 export async function launchBrowser(
@@ -114,12 +142,18 @@ export async function launchBrowser(
   try {
     return await puppeteer.launch(launchOptions);
   } catch (error) {
-    // 如果启动失败，给出清晰的错误提示
     if (error instanceof Error) {
+      if (PROFILE_IN_USE_RE.test(error.message)) {
+        const existing = await connectToRunningBrowser(userDataDir);
+        if (existing) {
+          return existing;
+        }
+        throw profileInUseError(userDataDir);
+      }
       if (error.message.includes('Executable doesn\'t exist') || error.message.includes('Could not find browser')) {
         throw new Error(
           '未找到浏览器。请确保已安装 Chrome/Chromium 浏览器，或通过环境变量 CHROME_PATH 指定浏览器路径。\n' +
-          '例如：export CHROME_PATH="/path/to/chrome" (Linux/Mac) 或 set CHROME_PATH="C:\\path\\to\\chrome.exe" (Windows)'
+          '例如：export CHROME_PATH="/path/to/chrome" (Linux/Mac) 或 set CHROME_PATH="C:\\path\\to\\chrome.exe" (Windows)',
         );
       }
     }

@@ -1,7 +1,7 @@
 {
   "name": "xhs-cli",
   "version": "1.3.2",
-  "description": "小红书创作者 CLI：多账号会话、草稿/审批流、发帖与数据抓取（人机确认发布）",
+  "description": "小红书创作者 CLI：多账号会话、发帖与数据抓取（人机确认发布）",
   "type": "module",
   "main": "dist/cli/index.js",
   "types": "dist/cli/index.d.ts",
@@ -16,6 +16,8 @@
   ],
   "scripts": {
     "build": "tsc",
+    "build:test": "tsc -p tsconfig.test.json",
+    "test": "npm run build && npm run build:test && node --test dist-test/**/*.test.js",
     "postpublish": "git checkout README.md",
     "dev": "npm run build && node dist/cli/index.js help"
   },
@@ -48,7 +50,9 @@
     "puppeteer-core": "^24.29.1"
   },
   "devDependencies": {
+    "@types/jsdom": "^28.0.3",
     "@types/node": "^24.10.0",
+    "jsdom": "^26.1.0",
     "typescript": "^5.3.3"
   }
 }

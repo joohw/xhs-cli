@@ -19,7 +19,7 @@ export type StoredAccount = {
 
 export type AccountsRegistryFile = {
   version: 1;
-  /** 遗留字段；旧版曾作默认账号。CLI 不再读取，仅保持与既有 registry.json 兼容。 */
+  /** 当前默认账号；未指定 `--account` 时使用（可用 `xhs account use` 切换） */
   currentAccount: string | null;
   accounts: Record<string, StoredAccount>;
 };
@@ -117,41 +117,13 @@ export function hasConfiguredAccounts(reg: AccountsRegistryFile): boolean {
   return Object.keys(reg.accounts).length > 0;
 }
 
-/** 从左到右找 `rest` 中第一个已在 registry 的 slug */
-export function firstRegisteredSlugInRest(
-  reg: AccountsRegistryFile,
-  rest: string[],
-): string | undefined {
-  for (const r of rest) {
-    const t = r?.trim();
-    if (t && reg.accounts[t]) {
-      return t;
-    }
-  }
-  return undefined;
-}
-
-/** 从右到左找第一个已在 registry 的 slug（适合 `post … <slug>` 把账号写在末尾） */
-export function lastRegisteredSlugInRest(
-  reg: AccountsRegistryFile,
-  rest: string[],
-): string | undefined {
-  for (let i = rest.length - 1; i >= 0; i--) {
-    const t = rest[i]?.trim();
-    if (t && reg.accounts[t]) {
-      return t;
-    }
-  }
-  return undefined;
-}
-
 const DEFAULT_POLICY = `<!-- xhs-cli 默认策略模板，可自行修改 -->
 
 # 发帖与运营策略
 
 - **合规**：遵守法律法规与小红书社区规范。
 - **风格**：人设与选题与账号定位一致。
-- **发布**：仅人工确认后正式发布；可先本地草稿流转。
+- **发布**：仅人工确认后正式发布。
 
 与本账号相关的备注可写在下文：
 
@@ -159,11 +131,6 @@ const DEFAULT_POLICY = `<!-- xhs-cli 默认策略模板，可自行修改 -->
 
 export function accountRootDir(slug: string): string {
   return join(CACHE_DIR, 'accounts', slug);
-}
-
-/** 某账号草稿目录：`~/.xhs-cli/.cache/accounts/<slug>/drafts/` */
-export function accountDraftsDir(slug: string): string {
-  return join(accountRootDir(slug), 'drafts');
 }
 
 /** 写入 policy.md（若缺失） */
@@ -200,8 +167,34 @@ export function addStoredAccount(opts: { name: string }): StoredAccount {
     policyPath,
   };
   reg.accounts[slug] = row;
+  const keys = Object.keys(reg.accounts);
+  if (
+    keys.length === 1 ||
+    !reg.currentAccount ||
+    !reg.accounts[reg.currentAccount]
+  ) {
+    reg.currentAccount = slug;
+  }
   saveAccountsRegistry(reg);
   return row;
+}
+
+/** 将 registry 中的当前账号设为 `slug` */
+export function setCurrentAccount(slug: string): void {
+  validateAccountSlug(slug);
+  const reg = loadAccountsRegistry();
+  if (!reg.accounts[slug]) {
+    throw new Error(`未知账号: ${slug}。可用 xhs account list 查看已配置账号。`);
+  }
+  reg.currentAccount = slug;
+  saveAccountsRegistry(reg);
+}
+
+/** 返回 registry 中记录的当前账号（不校验是否存在） */
+export function getCurrentAccount(): string | null {
+  const reg = loadAccountsRegistry();
+  const cur = reg.currentAccount?.trim();
+  return cur && reg.accounts[cur] ? cur : null;
 }
 
 export function getStoredAccountOrThrow(slug: string): StoredAccount {
@@ -219,13 +212,20 @@ export function formatAccountListLines(): string {
   if (keys.length === 0) {
     return '尚未配置账号。请先执行 xhs account add <name>。';
   }
+  const cur = getCurrentAccount();
   const lines: string[] = [];
   for (const k of keys) {
     const a = reg.accounts[k];
-    lines.push(`${a.name}\t会话:${a.browserDataDir}`);
+    const mark = k === cur ? ' *' : '';
+    lines.push(`${a.name}${mark}\t会话:${a.browserDataDir}`);
   }
   lines.push('');
-  lines.push('各业务命令每次均须带 --account <slug> 或该命令支持的位置参数 <slug>。');
+  if (cur) {
+    lines.push(`当前账号: ${cur}（列表中带 *）。切换: xhs account use <name>`);
+  } else {
+    lines.push('未设置当前账号。请执行: xhs account use <name>');
+  }
+  lines.push('临时指定: --account <slug>。');
   return lines.join('\n');
 }
 

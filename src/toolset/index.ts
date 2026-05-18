@@ -7,7 +7,7 @@ import { getNoteDetail } from './get_note_detail.js';
 import { formatUserProfileText } from './get_profile.js';
 import { getRecentPosts } from './get_recent_posts.js';
 import { postNote, type PostNoteArgs } from './post.js';
-import { resolveSession } from './sessionResolve.js';
+import { resolveAccountSlug, resolveSession } from './sessionResolve.js';
 import type { ResolvedSession } from './sessionTypes.js';
 
 function sessionOrDefault(session?: ResolvedSession): ResolvedSession {
@@ -56,5 +56,6 @@ export async function implPost(args: PostNoteArgs): Promise<string> {
   }
 }
 
-export { resolveSession };
+export { resolveAccountSlug, resolveSession };
+export { setCurrentAccount, getCurrentAccount } from './accountRegistry.js';
 export type { ResolvedSession };

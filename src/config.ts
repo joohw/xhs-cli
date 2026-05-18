@@ -1,12 +1,20 @@
 // src/config.ts
-// 配置文件 — 所有应用生成的数据位于 ~/.xhs-cli/.cache/
+// 配置文件 — 所有应用生成的数据位于 ~/.xhs-cli/.cache/（测试可用 XHS_CLI_HOME 覆盖）
 
 import { existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
 
+function resolveAppHome(): string {
+  const override = process.env.XHS_CLI_HOME?.trim();
+  if (override) {
+    return override;
+  }
+  return join(homedir(), '.xhs-cli');
+}
+
 /** 应用主目录（仅作根路径，业务数据在 .cache 下） */
-export const APP_HOME = join(homedir(), '.xhs-cli');
+export const APP_HOME = resolveAppHome();
 
 /**
  * 应用缓存与生成数据根目录（笔记缓存、Cookie、浏览器配置等）
@@ -20,8 +28,6 @@ export const BROWSER_USER_DATA_DIR = join(CACHE_DIR, 'browser-data');
 export const ACCOUNTS_ROOT = join(CACHE_DIR, 'accounts');
 /** 账号注册表：`~/.xhs-cli/.cache/accounts/registry.json` */
 export const ACCOUNTS_REGISTRY_PATH = join(ACCOUNTS_ROOT, 'registry.json');
-/** 待发草稿（遗留全局目录，仅用于读取旧数据；新草稿在 `accounts/<slug>/drafts/`） */
-export const DRAFTS_ROOT = join(CACHE_DIR, 'drafts');
 /** 已发布归档：`~/.xhs-cli/.cache/published/` */
 export const PUBLISHED_ROOT = join(CACHE_DIR, 'published');
 
@@ -46,12 +52,14 @@ export function ensureAppDataLayout(): void {
   if (!existsSync(SANDBOX_DIR)) {
     mkdirSync(SANDBOX_DIR, { recursive: true });
   }
-  if (!existsSync(DRAFTS_ROOT)) {
-    mkdirSync(DRAFTS_ROOT, { recursive: true });
-  }
   if (!existsSync(PUBLISHED_ROOT)) {
     mkdirSync(PUBLISHED_ROOT, { recursive: true });
   }
+}
+
+/** 仅测试：重置 ensureAppDataLayout 幂等标记 */
+export function resetAppDataLayoutCacheForTests(): void {
+  appDataLayoutReady = false;
 }
 
 // 运营数据缓存时间

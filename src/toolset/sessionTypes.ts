@@ -1,6 +1,8 @@
 /** 会话与缓存前缀：由 CLI 解析 `--account` 与 registry 得出 */
 
 export type ResolvedSession = {
+  /** 本次使用的账号 slug */
+  account: string;
   /** Puppeteer Chrome userDataDir */
   browserUserDataDir: string;
   /**

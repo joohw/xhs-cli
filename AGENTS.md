@@ -4,7 +4,8 @@
 
 ## 与外部 Agent 集成
 
-- 若使用 **pi-agent-core** 等宿主：在宿主侧注册工具，**execute** 里直接调用同名 **`impl*`**（与 CLI 共用实现）。业务调用须传入 **`ResolvedSession`**（例如先 `resolveSession('<slug>')` 再传给 `implLogin` 等）；**不要**省略会话依赖隐式默认账号。
+- 若使用 **pi-agent-core** 等宿主：在宿主侧注册工具，**execute** 里直接调用同名 **`impl*`**（与 CLI 共用实现）。业务调用须传入 **`ResolvedSession`**（例如先 `resolveSession()` 或 `resolveSession('<slug>')` 再传给 `implLogin` 等）。
+- **账号**：未传 `--account` 时仅使用 registry 的 **`currentAccount`**（无单账号自动推断、无位置参数 slug）。无当前账号时 `resolveSession()` 会抛错，须 `xhs account use <slug>` 或 `resolveSession('<slug>')`。
 - 数据与缓存目录约定见 **`src/config.ts`**（应用根 `~/.xhs-cli`，业务数据在 `~/.xhs-cli/.cache/`）。
 
 ## 入口
@@ -16,14 +17,13 @@
 
 - 应用根目录：`~/.xhs-cli`（仅作父目录）
 - 应用生成内容：`~/.xhs-cli/.cache/`
-- **未配置多账号时**浏览器用户数据：CLI 仍要求先在注册表中有一个账号条目；数据目录为 **`~/.xhs-cli/.cache/accounts/<slug>/browser-data`**（不再将全局 `cache/browser-data` 作为会话回退）。
-- **多账号时**每账号会话：同上，每 slug 独立目录（详见 `README`）
-- 草稿：每账号 `~/.xhs-cli/.cache/accounts/<slug>/drafts/`（遗留根目录 `drafts/` 仍可读）；发布归档：`~/.xhs-cli/.cache/published/`
+- **多账号**：`~/.xhs-cli/.cache/accounts/<slug>/browser-data`；**当前账号**在 `accounts/registry.json` 的 `currentAccount`
+- 发布归档（可选）：`~/.xhs-cli/.cache/published/`
 
-**发帖**：`post` 子命令仅使用当次传入的 `--title`、`--content`（或 `--content-file`）与 `--image` 路径，不依赖待发文件队列。
+**发帖**：`post` 子命令仅使用当次传入的 `--title`、`--content`（或 `--content-file`）与 `--image` 路径。
 
 ## 实现位置
 
-- CLI：`src/cli/cliRouter.ts`（`runCli`）；入口：`src/cli/index.ts`。子命令包括 `recent`（创作者已发列表）、`posted`（本地发帖归档）、`detail`、`draft` / `drafts`、`draft post` 等；`published` 已移除。
-- 小红书业务：`src/toolset/xiaohongshu/*`
-- 浏览器：`src/toolset/core/browser/browser.ts`
+- CLI：`src/cli/cliRouter.ts`；会话解析：`src/toolset/sessionResolve.ts`（`resolveAccountSlug` / `resolveSession`）
+- 小红书业务：`src/toolset/`（`post.ts`、`login.ts`、`get_*` 等）
+- 浏览器：`src/browser/index.ts`

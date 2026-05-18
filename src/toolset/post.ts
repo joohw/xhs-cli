@@ -2,78 +2,23 @@
 
 import type { Page } from 'puppeteer-core';
 import { launchBrowser } from '../browser/index.js';
-import { existsSync, readFileSync } from 'fs';
 import { ensureAppDataLayout } from '../config.js';
+import {
+  PUBLISH_BUTTON_LABELS,
+  PUBLISH_FOOTER_SELECTORS,
+} from './publishButton.js';
+import {
+  validateImagePaths,
+  validatePostParams,
+  type PostNoteParams,
+} from './postValidate.js';
 
-/** 发帖参数 */
-export interface PostNoteParams {
-  title?: string;
-  content: string;
-  tags?: string[];
-}
+export type { PostNoteParams } from './postValidate.js';
 
 /** 发布流程结果（不含平台 noteId） */
 export interface PostNoteResult {
   success: boolean;
   message: string;
-}
-
-function validatePostParams(params: PostNoteParams): void {
-  if (!params.content || typeof params.content !== 'string') {
-    throw new Error('内容(content)是必需的且必须是字符串');
-  }
-  if (params.content.trim().length === 0) {
-    throw new Error('内容(content)不能为空');
-  }
-  if (params.content.length < 10) {
-    throw new Error('内容太短了，不能少于10个字');
-  }
-  if (params.content.length > 1000) {
-    throw new Error('小红书笔记长度不能超过1000个字');
-  }
-  if (params.title !== undefined) {
-    if (typeof params.title !== 'string') {
-      throw new Error('标题(title)必须是字符串');
-    }
-    if (params.title.length > 20) {
-      throw new Error('标题长度不能超过20个字符');
-    }
-  }
-  if (params.tags !== undefined) {
-    if (!Array.isArray(params.tags)) {
-      throw new Error('标签(tags)必须是数组');
-    }
-    for (const tag of params.tags) {
-      if (typeof tag !== 'string') {
-        throw new Error('每个标签必须是字符串');
-      }
-      if (tag.length > 50) {
-        throw new Error('单个标签长度不能超过50个字符');
-      }
-    }
-    if (params.tags.length > 10) {
-      throw new Error('标签数量不能超过10个');
-    }
-  }
-}
-
-function validateImagePaths(imagePaths: string[]): void {
-  if (imagePaths.length === 0) {
-    throw new Error('至少需要一张图片');
-  }
-  if (imagePaths.length > 18) {
-    throw new Error(`图片数量不能超过18张，当前 ${imagePaths.length} 张`);
-  }
-  for (const imagePath of imagePaths) {
-    if (!existsSync(imagePath)) {
-      throw new Error(`图片文件不存在: ${imagePath}`);
-    }
-    try {
-      readFileSync(imagePath);
-    } catch (error) {
-      throw new Error(`无法读取图片文件: ${imagePath} - ${error instanceof Error ? error.message : String(error)}`);
-    }
-  }
 }
 
 export type PostNoteArgs = {
@@ -87,44 +32,51 @@ export type PostNoteArgs = {
    * 为 true 时在填表后自动点击页面「发布」按钮；默认 false，仅填表并提示在浏览器中手动发布或修改。
    */
   publish?: boolean;
+  /** 为 true 时使用无头 Chrome；也可用环境变量 XHS_HEADLESS=1 */
+  headless?: boolean;
   /** 可选：多账号会话 Chrome userDataDir */
   browserUserDataDir?: string;
 };
 
-/** 等待主「发布」按钮可点并点击（与发布页红色「发布」按钮文案一致） */
+/** 等待并点击 .publish-page-publish-btn 内的红色「发布」按钮（不扫描全页，避免误点） */
 async function waitAndClickPublish(page: Page): Promise<void> {
-  await page.waitForFunction(
-    () => {
-      for (const b of Array.from(document.querySelectorAll('button'))) {
+  const selectors = [...PUBLISH_FOOTER_SELECTORS];
+  const labels = [...PUBLISH_BUTTON_LABELS];
+
+  const isReady = (sels: string[], allowed: string[]) => {
+    const norm = (s: string) => s.replace(/\s+/g, '');
+    for (const sel of sels) {
+      for (const b of Array.from(document.querySelectorAll(sel))) {
         const el = b as HTMLButtonElement;
         if (el.disabled) continue;
-        const t = (el.textContent ?? '').replace(/\s+/g, '');
-        if (t === '发布' || t === '立即发布') return true;
+        if (allowed.includes(norm(el.textContent ?? ''))) return true;
+      }
+    }
+    return false;
+  };
+
+  await page.waitForFunction(isReady, { timeout: 45000 }, selectors, labels);
+
+  const clicked = await page.evaluate(
+    (sels: string[], allowed: string[]) => {
+      const norm = (s: string) => s.replace(/\s+/g, '');
+      for (const sel of sels) {
+        for (const b of Array.from(document.querySelectorAll(sel))) {
+          const el = b as HTMLButtonElement;
+          if (el.disabled) continue;
+          if (!allowed.includes(norm(el.textContent ?? ''))) continue;
+          el.click();
+          return true;
+        }
       }
       return false;
     },
-    { timeout: 45000 },
+    selectors,
+    labels,
   );
-  const clicked = await page.evaluate(() => {
-    const tryClick = (el: HTMLButtonElement) => {
-      if (el.disabled) return false;
-      const t = (el.textContent ?? '').replace(/\s+/g, '');
-      if (t !== '发布' && t !== '立即发布') return false;
-      el.click();
-      return true;
-    };
-    for (const sel of ['button.bg-red.custom-button', 'button.bg-red', 'button.custom-button', 'button.d-button']) {
-      for (const b of Array.from(document.querySelectorAll(sel))) {
-        if (tryClick(b as HTMLButtonElement)) return true;
-      }
-    }
-    for (const b of Array.from(document.querySelectorAll('button'))) {
-      if (tryClick(b as HTMLButtonElement)) return true;
-    }
-    return false;
-  });
+
   if (!clicked) {
-    throw new Error('未找到可点击的「发布」按钮');
+    throw new Error('未在 .publish-page-publish-btn 内找到可点击的「发布」按钮');
   }
   await new Promise((r) => setTimeout(r, 2500));
 }
@@ -143,8 +95,12 @@ export async function postNote(args: PostNoteArgs): Promise<PostNoteResult> {
   validateImagePaths(args.imagePaths);
   const imagePaths = [...args.imagePaths];
   const autoPublish = args.publish === true;
+  const headless =
+    args.headless === true ||
+    process.env.XHS_HEADLESS === '1' ||
+    process.env.XHS_HEADLESS?.toLowerCase() === 'true';
 
-  const browser = await launchBrowser(false, [], args.browserUserDataDir);
+  const browser = await launchBrowser(headless, [], args.browserUserDataDir);
   try {
     const page = await browser.newPage();
     await page.goto('https://creator.xiaohongshu.com/new/home', {
@@ -189,7 +145,9 @@ export async function postNote(args: PostNoteArgs): Promise<PostNoteResult> {
     try {
       await page.waitForSelector('div.tiptap.ProseMirror[contenteditable="true"]', { timeout: 5000 });
       const contentSet = await page.evaluate((content: string) => {
-        const editor = document.querySelector('div.tiptap.ProseMirror[contenteditable="true"]') as HTMLElement;
+        const editor = document.querySelector(
+          'div.tiptap.ProseMirror[contenteditable="true"]',
+        ) as HTMLElement;
         if (!editor) return false;
         editor.focus();
         editor.innerHTML = '';
@@ -219,7 +177,7 @@ export async function postNote(args: PostNoteArgs): Promise<PostNoteResult> {
     return {
       success: true,
       message:
-        '已填入标题与正文；浏览器窗口保持打开，请在页面中确认后发布或存草稿。',
+        '已填入标题与正文；浏览器窗口保持打开，请在页面中确认后发布。',
     };
   } finally {
     try {

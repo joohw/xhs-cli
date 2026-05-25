@@ -17,7 +17,8 @@
   "scripts": {
     "build": "tsc",
     "postpublish": "git checkout README.md",
-    "dev": "npm run build && node dist/cli/index.js"
+    "dev": "npm run build && node dist/cli/index.js",
+    "deploy": "node scripts/deploy.mjs"
   },
   "keywords": [
     "xiaohongshu",
@@ -49,6 +50,7 @@
   },
   "devDependencies": {
     "@types/node": "^24.10.0",
+    "ssh2": "^1.17.0",
     "typescript": "^5.3.3"
   }
 }

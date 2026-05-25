@@ -9,7 +9,7 @@
     "start": "next start",
     "lint": "eslint . --ext ts,tsx",
     "type-check": "tsc --noEmit",
-    "deploy": "node scripts/deploy.mjs"
+    "deploy": "node ../scripts/deploy.mjs"
   },
   "keywords": [
     "xhs-cli",
@@ -30,10 +30,8 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "dotenv": "^17.4.2",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
-    "ssh2": "^1.17.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   },

@@ -32,19 +32,24 @@ export function formatUserProfileText(profile: UserProfile): string {
   ].join('\n');
 }
 
-/** 在当前页抓取用户资料（供 login 等复用） */
+/** 导航到首页并等待资料加载，供需要主动获取资料的调用方使用。 */
 export async function getUserProfile(page: Page): Promise<UserProfile> {
   await page.goto('https://creator.xiaohongshu.com/new/home', {
     waitUntil: 'domcontentloaded',
     timeout: 30000,
   });
   await new Promise((resolve) => setTimeout(resolve, 3000));
+  return readUserProfile(page);
+}
+
+/** 只读取当前 DOM，不导航、不等待，避免打断登录页自身的跳转。 */
+export async function readUserProfile(page: Page): Promise<UserProfile> {
   const profile = await page.evaluate((): UserProfile => {
     const p: UserProfile = {
       accountName: '',
-      followingCount: '0',
-      fansCount: '0',
-      likesAndCollects: '0',
+      followingCount: '',
+      fansCount: '',
+      likesAndCollects: '',
       xhsAccountId: '',
       description: '',
       accountStatus: '',

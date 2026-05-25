@@ -9,7 +9,7 @@ export default function Hero() {
         </h1>
 
         <p className="text-slate-400 text-lg leading-relaxed mb-10 max-w-xl">
-          xhs-cli 是面向小红书创作者与运营团队的开源 CLI。管理多账号会话、查询运营与笔记数据，并将图文素材填入创作后台；发布前默认由你确认。
+          xhs-cli 是面向小红书创作者与运营团队的开源 CLI。管理多账号会话、查询运营与笔记数据，并将图文素材填入创作后台。
         </p>
 
         <div className="flex flex-wrap gap-3 mb-12">

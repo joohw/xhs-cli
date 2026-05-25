@@ -1,195 +1,108 @@
-// 使用 puppeteer-core 实现小红书登录
+import type { Page } from 'puppeteer-core';
+import {
+  detachBrowserSession,
+  disconnectBrowserSession,
+  ensureBrowserSession,
+  getBrowserRef,
+  getPageRef,
+  getUserDataDir,
+  setSessionPage,
+  showAgentOperatingIndicator,
+  SKIP_AGENT_OPERATING_OVERLAY,
+  wasLastChromeLaunchHeadless,
+} from '../browser/index.js';
+import { CREATOR_HOME_URL, isLoginUrl } from '../browser/xhs_session_page.js';
+import { readUserProfile, formatUserProfileText } from './get_profile.js';
 
+async function pickExistingPage(browser: NonNullable<ReturnType<typeof getBrowserRef>>): Promise<Page | null> {
+  const pages = (await browser.pages()).filter((p) => !p.isClosed());
+  if (pages.length === 0) return null;
 
-import { Browser, Page } from 'puppeteer-core';
-import { launchBrowser } from '../browser/index.js';
-import { getUserProfile, validateUserProfile, type UserProfile } from './get_profile.js';
-
-
-// 等待登录完成
-async function waitForLogin(page: Page, timeout: number = 180000): Promise<boolean> {
-  const startTime = Date.now();
-  let lastCheckUrl = page.url();
-  const navigationPromises: Promise<any>[] = [];
-  const navigationHandler = () => {
-    const promise = page.waitForNavigation({
-      waitUntil: 'domcontentloaded',
-      timeout: 5000,
-    }).catch(() => null);
-    navigationPromises.push(promise);
-  };
-  page.on('framenavigated', navigationHandler);
-  try {
-    while (Date.now() - startTime < timeout) {
+  const urls = await Promise.all(
+    pages.map((p) => {
       try {
-        // 检查浏览器和页面是否已断开连接
-        if (page.isClosed() || !page.browser().isConnected()) {
-          return false;
-        }
-        await Promise.race([
-          ...navigationPromises,
-          new Promise(resolve => setTimeout(resolve, 2000)),
-        ]);
-        // 清空已完成的导航 Promise
-        navigationPromises.length = 0;
-        // 等待页面稳定（网络请求完成）
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        // 再次检查连接状态
-        if (page.isClosed() || !page.browser().isConnected()) {
-          return false;
-        }
-        // 检查当前页面URL
-        const currentUrl = page.url();
-        // 如果URL发生变化，说明可能发生了跳转（比如登录成功后的重定向）
-        if (currentUrl !== lastCheckUrl) {
-          lastCheckUrl = currentUrl;
-          // 等待页面完全加载（等待网络请求完成）
-          await new Promise(resolve => setTimeout(resolve, 3000));
-          // 再次检查连接状态
-          if (page.isClosed() || !page.browser().isConnected()) {
-            return false;
-          }
-          // 如果当前不在登录页面，且在小红书域名下，尝试使用轻量方式检测
-          const isLoginPage = currentUrl.includes('/login') || currentUrl.includes('/signin');
-          if (!isLoginPage && currentUrl.includes('xiaohongshu.com')) {
-            // 等待页面元素加载完成
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            // 使用 fetch 方式检测，不重新加载页面，避免刷新
-            const canAccessCreator = await page.evaluate(async () => {
-              try {
-                const response = await fetch('https://creator.xiaohongshu.com/new/home', {
-                  method: 'HEAD',
-                  redirect: 'manual',
-                });
-                // 如果返回 200，说明可以访问（已登录）
-                // 如果返回 302/301 等重定向，需要检查 Location header
-                if (response.status === 200) {
-                  return true;
-                }
-                if (response.status >= 300 && response.status < 400) {
-                  const location = response.headers.get('location') || '';
-                  // 如果重定向到登录页面，说明未登录
-                  return !location.includes('/login') && !location.includes('/signin');
-                }
-                return false;
-              } catch (e) {
-                return false;
-              }
-            });
-            // 如果能访问创作者中心，说明已登录
-            if (canAccessCreator) {
-              return true;
-            }
-          }
-        }
-        // URL 没有变化，继续等待
-        await new Promise(resolve => setTimeout(resolve, 2000));
-      } catch (e) {
-        // 检查是否是浏览器关闭导致的错误
-        if (e instanceof Error && (e.message.includes('Target closed') || e.message.includes('Session closed') || e.message.includes('Protocol error'))) {
-          return false;
-        }
-        // 如果访问出错，可能是网络问题，继续等待
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        return p.url();
+      } catch {
+        return '';
       }
-    }
-    return false;
-  } finally {
-    page.off('framenavigated', navigationHandler);
-  }
+    }),
+  );
+
+  const creator = pages.find((p, i) => {
+    const u = urls[i] ?? '';
+    return u.length > 0 && u !== 'about:blank' && u.includes('creator.xiaohongshu.com');
+  });
+  if (creator) return creator;
+
+  const nonBlank = pages.find((p, i) => {
+    const u = urls[i] ?? '';
+    return u.length > 0 && u !== 'about:blank';
+  });
+  return nonBlank ?? null;
 }
 
+/**
+ * 登录（手动）：打开创作者中心，让用户在浏览器中自行完成登录。
+ * 已登录时快速返回资料；否则立即 detach，CLI 不等待轮询。
+ */
+export async function runLogin(userDataDir?: string): Promise<string> {
+  process.env.XHS_BROWSER_HEADLESS = 'false';
+  const dir = getUserDataDir(userDataDir);
 
-
-
-// 主登录函数（userDataDir 可选：多账号时传入 ~/.xhs-cli/.cache/accounts/<slug>/browser-data）
-async function login(userDataDir?: string): Promise<UserProfile | null> {
-  let browser: Browser | null = null;
+  const existing = getBrowserRef();
   try {
-    // 登录时使用非无头模式，让用户可以看到并操作
-    // 添加登录时需要的额外参数
-    const loginExtraArgs = [
-      '--disable-accelerated-2d-canvas',
-      '--disable-software-rasterizer',
-      '--disable-extensions',
-      '--disable-background-networking',
-      '--disable-background-timer-throttling',
-      '--disable-backgrounding-occluded-windows',
-      '--disable-renderer-backgrounding',
-      '--disable-features=TranslateUI',
-      '--disable-ipc-flooding-protection',
-      '--disable-sync',
-      '--disable-default-apps',
-      '--no-first-run',
-      '--no-default-browser-check',
-      '--disable-infobars',
-    ];
-    browser = await launchBrowser(false, loginExtraArgs, userDataDir);
-    const page = await browser.newPage();
-    await page.goto('https://creator.xiaohongshu.com/new/home', {
-      waitUntil: 'domcontentloaded',
-      timeout: 30000,
+    const args = existing?.process?.()?.spawnargs ?? [];
+    const isHeadless =
+      wasLastChromeLaunchHeadless() ||
+      args.some((a) => typeof a === 'string' && a.startsWith('--headless'));
+    if (existing?.connected && isHeadless) {
+      await disconnectBrowserSession().catch(() => {});
+    }
+  } catch {
+    /* ignore */
+  }
+
+  await ensureBrowserSession({ userDataDir: dir, headless: false });
+  const browser = getBrowserRef();
+  if (!browser) {
+    throw new Error('无法获取浏览器实例，登录失败。');
+  }
+
+  let page = getPageRef();
+  if (!page || page.isClosed()) {
+    page = (await pickExistingPage(browser)) ?? (await browser.newPage());
+  }
+  setSessionPage(page);
+  await page.bringToFront();
+  await page.goto(CREATOR_HOME_URL, {
+    waitUntil: 'domcontentloaded',
+    timeout: 30000,
+  });
+
+  if (!SKIP_AGENT_OPERATING_OVERLAY) {
+    await showAgentOperatingIndicator(page).catch(() => {
+      /* 注入失败不阻断登录 */
     });
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    // 检查页面是否已关闭
-    if (page.isClosed() || !page.browser().isConnected()) {
-      console.error('❌ 浏览器已关闭，登录中断\n');
-      return null;
-    }
-    const currentUrl = page.url();
-    const isLoginPage = currentUrl.includes('/login') || currentUrl.includes('/signin');
-    if (!isLoginPage && currentUrl.includes('creator.xiaohongshu.com')) {
-      // 再次检查页面连接状态
-      if (page.isClosed() || !page.browser().isConnected()) {
-        console.error('❌ 浏览器已关闭，登录中断\n');
-        return null;
-      }
-      const userProfile = await getUserProfile(page);
-      if (!validateUserProfile(userProfile)) {
-        throw new Error('获取用户资料失败：返回的数据无效');
-      }
-      return userProfile;
-    } else {
-      console.error('⏰ 您有 120 秒时间完成登录\n');
-      const loginSuccess = await waitForLogin(page, 120000);
-      if (loginSuccess) {
-        // 检查页面连接状态
-        if (page.isClosed() || !page.browser().isConnected()) {
-          console.error('❌ 浏览器已关闭，登录中断\n');
-          return null;
-        }
-        const userProfile = await getUserProfile(page);
-        return userProfile;
-      } else {
-        console.log('❌ 登录超时或失败\n');
-        return null;
-      }
-    }
-  } catch (error) {
-    // 检查是否是浏览器关闭导致的错误
-    if (error instanceof Error && (error.message.includes('Target closed') || error.message.includes('Session closed') || error.message.includes('Protocol error'))) {
-      console.error('❌ 浏览器已关闭，登录中断\n');
-    } else {
-      console.error('❌ 登录过程出错:', error);
-      if (error instanceof Error) {
-        console.error('错误信息:', error.message);
-      }
-    }
-    return null;
-  } finally {
-    if (browser) {
-      try {
-        // 检查浏览器是否已连接，避免重复关闭导致的错误
-        if (browser.isConnected()) {
-          await browser.close();
-        }
-      } catch (e) {
-        // 忽略关闭浏览器时的错误（可能已经被用户关闭）
-      }
+  }
+
+  const currentUrl = page.url();
+  if (!isLoginUrl(currentUrl) && currentUrl.includes('creator.xiaohongshu.com')) {
+    // 首页可能仍在渲染或跳转到登录页，资料探测失败应回到手动登录提示。
+    // 不再次 goto：首页导航已在上方完成，重复导航可能触发 ERR_ABORTED。
+    const userProfile = await readUserProfile(page).catch(() => null);
+    if (userProfile) {
+      await detachBrowserSession();
+      return `✅ 已登录\n${formatUserProfileText(userProfile)}`;
     }
   }
+
+  await detachBrowserSession();
+  return [
+    `已在浏览器中打开小红书创作者中心：${CREATOR_HOME_URL}`,
+    '本命令已同步结束并立即返回，CLI 不会等待 / 轮询 / 校验登录结果。',
+    '请在浏览器中完成登录；后续 xhs metrics / post 等命令将复用同一会话。',
+  ].join('\n');
 }
 
-
-// 导出登录函数
-export { login };
+/** 兼容旧调用方 */
+export const login = runLogin;

@@ -2,6 +2,7 @@
  * CLI：子命令直接调用 toolset 中的 impl*；自然语言 Agent 由外部宿主集成。
  */
 import { readFileSync, existsSync } from 'fs';
+import { detachBrowserSession } from '../browser/index.js';
 import {
   implLogin,
   implGetOperationData,
@@ -149,6 +150,9 @@ export async function runOneCommand(argv: string[]): Promise<void> {
   }
 
   const cmd = argv[0];
+  if (cmd === 'login' || cmd === 'post') {
+    process.env.XHS_BROWSER_HEADLESS = 'false';
+  }
   const tail = argv.slice(1);
 
   if (cmd === 'account') {
@@ -284,5 +288,7 @@ export async function runCli(argv: string[]): Promise<void> {
     await runOneCommand(argv);
   } catch (e) {
     handleCliError(e);
+  } finally {
+    await detachBrowserSession().catch(() => {});
   }
 }

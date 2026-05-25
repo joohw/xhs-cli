@@ -40,7 +40,8 @@ export default function BlogIndexPage() {
   return (
     <div className="bg-slate-950 min-h-screen">
       <Navbar />
-      <main className="max-w-3xl mx-auto px-6 pt-28 pb-16">
+      <main className="px-6 pt-28 pb-16">
+        <div className="max-w-6xl mx-auto">
         <h1 className="text-3xl font-bold text-white mb-3">小红书运营自动化教程</h1>
         <p className="text-slate-400 mb-10">从安装登录到数据查询、图文发帖和外部 Agent 集成，所有示例均与当前 CLI 命令保持一致。</p>
 
@@ -64,6 +65,7 @@ export default function BlogIndexPage() {
             ))}
           </ul>
         )}
+        </div>
       </main>
       <Footer />
     </div>

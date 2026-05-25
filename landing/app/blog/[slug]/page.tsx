@@ -71,7 +71,8 @@ export default async function BlogPostPage({ params }: PageProps) {
     <div className="bg-slate-950 min-h-screen">
       <StructuredData data={jsonLd} />
       <Navbar />
-      <main className="max-w-3xl mx-auto px-6 pt-28 pb-16">
+      <main className="px-6 pt-28 pb-16">
+        <div className="max-w-6xl mx-auto">
         <Link href="/blog" className="text-sm text-slate-400 hover:text-white transition-colors">
           ← 返回博客
         </Link>
@@ -93,6 +94,7 @@ export default async function BlogPostPage({ params }: PageProps) {
           </header>
           <div className="blog-prose" dangerouslySetInnerHTML={{ __html: html }} />
         </article>
+        </div>
       </main>
       <Footer />
     </div>

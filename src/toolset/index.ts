@@ -1,10 +1,9 @@
 /**
  * 小红书等业务能力（impl*）；供 CLI 子命令直接调用；外部 Agent 可单独引用同一套 impl。
  */
-import { login } from './login.js';
+import { runLogin } from './login.js';
 import { getOperationData } from './get_metrics.js';
 import { getNoteDetail } from './get_note_detail.js';
-import { formatUserProfileText } from './get_profile.js';
 import { getRecentPosts } from './get_recent_posts.js';
 import { postNote, type PostNoteArgs } from './post.js';
 import { resolveAccountSlug, resolveSession } from './sessionResolve.js';
@@ -19,11 +18,7 @@ function sessionOrDefault(session?: ResolvedSession): ResolvedSession {
 
 export async function implLogin(session?: ResolvedSession): Promise<string> {
   const s = sessionOrDefault(session);
-  const userProfile = await login(s.browserUserDataDir);
-  if (userProfile) {
-    return `✅ 登录成功\n${formatUserProfileText(userProfile)}`;
-  }
-  return '❌ 登录失败';
+  return runLogin(s.browserUserDataDir);
 }
 
 export async function implGetOperationData(session?: ResolvedSession): Promise<string> {

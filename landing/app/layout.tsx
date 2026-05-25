@@ -1,7 +1,8 @@
 import type { Metadata } from 'next'
+import { SITE_URL } from '@/lib/site'
 import './globals.css'
 
-const siteUrl = 'https://xhs-cli.com'
+const siteUrl = SITE_URL
 const title = 'xhs-cli — 小红书自动化运营工具'
 const description =
   '专为小红书运营和代运营团队打造的开源命令行工具。自动化账户管理、数据分析、批量发布笔记，大幅提升运营效率。支持多账号、Agent 集成，一行命令搞定重复操作。'

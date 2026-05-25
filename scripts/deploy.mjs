@@ -115,7 +115,31 @@ Options:
 `)
 }
 
-async function runRemoteBash({
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+function isRetryableSshError(error) {
+  const message = String(error?.message || error || '')
+  return /handshake|ECONNRESET|ETIMEDOUT|EPIPE|ENOTCONN|Socket closed|Connection lost|connect/i.test(message)
+}
+
+function buildSshConnectOptions({ sshHost, sshPort, sshUser, sshPassword }) {
+  const connectOptions = {
+    host: sshHost,
+    port: sshPort,
+    username: sshUser,
+    readyTimeout: 60_000,
+    keepaliveInterval: 10_000,
+    keepaliveCountMax: 3,
+  }
+  if (sshPassword) {
+    connectOptions.password = sshPassword
+  }
+  return connectOptions
+}
+
+async function runRemoteBashOnce({
   sshHost,
   sshPort,
   sshUser,
@@ -143,18 +167,27 @@ async function runRemoteBash({
       })
     })
     conn.on('error', reject)
-
-    const connectOptions = {
-      host: sshHost,
-      port: sshPort,
-      username: sshUser,
-      readyTimeout: 30_000,
-    }
-    if (sshPassword) {
-      connectOptions.password = sshPassword
-    }
-    conn.connect(connectOptions)
+    conn.connect(buildSshConnectOptions({ sshHost, sshPort, sshUser, sshPassword }))
   })
+}
+
+async function runRemoteBash(options) {
+  const maxAttempts = 5
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      await runRemoteBashOnce(options)
+      return
+    } catch (error) {
+      if (attempt >= maxAttempts || !isRetryableSshError(error)) {
+        throw error
+      }
+      const waitMs = attempt * 3000
+      console.warn(
+        `SSH attempt ${attempt}/${maxAttempts} failed: ${error.message}. Retrying in ${waitMs / 1000}s...`,
+      )
+      await sleep(waitMs)
+    }
+  }
 }
 
 async function main() {

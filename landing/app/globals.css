@@ -12,3 +12,97 @@ body {
 a {
   text-decoration: none;
 }
+
+.blog-prose {
+  color: #cbd5e1;
+  font-size: 0.95rem;
+  line-height: 1.75;
+}
+
+.blog-prose > * + * {
+  margin-top: 1rem;
+}
+
+.blog-prose h2 {
+  margin-top: 2rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #f8fafc;
+}
+
+.blog-prose h3 {
+  margin-top: 1.5rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #f8fafc;
+}
+
+.blog-prose p {
+  color: #94a3b8;
+}
+
+.blog-prose a {
+  color: #e2e8f0;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.blog-prose a:hover {
+  color: #fff;
+}
+
+.blog-prose ul,
+.blog-prose ol {
+  padding-left: 1.25rem;
+  color: #94a3b8;
+}
+
+.blog-prose li + li {
+  margin-top: 0.35rem;
+}
+
+.blog-prose code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85em;
+  border: 1px solid #334155;
+  background: #1e293b;
+  padding: 0.1em 0.35em;
+  border-radius: 0.25rem;
+  color: #e2e8f0;
+}
+
+.blog-prose pre {
+  overflow-x: auto;
+  border: 1px solid #334155;
+  background: #1e293b;
+  padding: 0.85rem 1rem;
+  border-radius: 0.5rem;
+}
+
+.blog-prose pre code {
+  border: 0;
+  background: transparent;
+  padding: 0;
+}
+
+.blog-prose table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.blog-prose th,
+.blog-prose td {
+  border: 1px solid #334155;
+  padding: 0.5rem 0.65rem;
+  text-align: left;
+}
+
+.blog-prose th {
+  font-weight: 600;
+  color: #f8fafc;
+}
+
+.blog-prose td {
+  color: #94a3b8;
+}

@@ -13,6 +13,7 @@ export default function Footer() {
         </div>
 
         <div className="flex flex-wrap gap-x-8 gap-y-3 text-sm">
+          <a href="/blog" className="text-slate-400 hover:text-white transition-colors">博客</a>
           <a href="https://github.com/joohw/xhs-cli" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition-colors">GitHub</a>
           <a href="https://www.npmjs.com/package/xhs-cli" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition-colors">NPM</a>
           <a href="https://github.com/joohw/xhs-cli/issues" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition-colors">Issues</a>

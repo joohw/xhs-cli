@@ -1,17 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
-
-export type BlogPostMeta = {
-  slug: string
-  title: string
-  description: string
-  date: string
-  lastModified: Date
-}
-
-export type BlogPost = BlogPostMeta & {
-  body: string
-}
+import { BLOG_POSTS, blogBySlug, blogPathname, type BlogPost, type BlogPostMeta } from '@/lib/blog-data'
+import { SITE_URL } from '@/lib/site'
 
 const BLOG_DIR = path.join(process.cwd(), 'content/blog')
 
@@ -33,11 +23,12 @@ function parseFrontmatter(raw: string): { meta: Record<string, string>; body: st
   return { meta, body: match[2].trim() }
 }
 
-function readPostFile(filename: string): BlogPost | null {
-  if (!filename.endsWith('.md')) return null
+function readPostFile(slug: string): BlogPost | null {
+  const filename = `${slug}.md`
+  const filePath = path.join(BLOG_DIR, filename)
+  if (!fs.existsSync(filePath)) return null
 
-  const slug = filename.slice(0, -3)
-  const raw = fs.readFileSync(path.join(BLOG_DIR, filename), 'utf8')
+  const raw = fs.readFileSync(filePath, 'utf8')
   const { meta, body } = parseFrontmatter(raw)
   const title = meta.title?.trim()
   if (!title) {
@@ -57,12 +48,13 @@ function readPostFile(filename: string): BlogPost | null {
   }
 }
 
-export function getAllBlogPosts(): BlogPostMeta[] {
-  if (!fs.existsSync(BLOG_DIR)) return []
+export function getBlogPost(slug: string): BlogPost | null {
+  if (!blogBySlug(slug)) return null
+  return readPostFile(slug)
+}
 
-  return fs
-    .readdirSync(BLOG_DIR)
-    .map(readPostFile)
+export function getAllBlogPosts(): BlogPostMeta[] {
+  return BLOG_POSTS.map((def) => readPostFile(def.slug))
     .filter((post): post is BlogPost => post !== null)
     .sort((a, b) => b.lastModified.getTime() - a.lastModified.getTime())
     .map(({ slug, title, description, date, lastModified }) => ({
@@ -74,9 +66,26 @@ export function getAllBlogPosts(): BlogPostMeta[] {
     }))
 }
 
-export function getBlogPost(slug: string): BlogPost | null {
-  const filename = `${slug}.md`
-  const filePath = path.join(BLOG_DIR, filename)
-  if (!fs.existsSync(filePath)) return null
-  return readPostFile(filename)
+export function buildBlogPostingJsonLd(slug: string): Record<string, unknown> {
+  const post = getBlogPost(slug)
+  if (!post) return {}
+
+  const pageUrl = `${SITE_URL}${blogPathname(slug)}`
+
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'BlogPosting',
+    '@id': `${pageUrl}#article`,
+    headline: post.title,
+    description: post.description || post.title,
+    datePublished: post.date || undefined,
+    dateModified: post.date || undefined,
+    inLanguage: 'zh-CN',
+    url: pageUrl,
+    mainEntityOfPage: { '@type': 'WebPage', '@id': pageUrl },
+    author: { '@type': 'Organization', name: 'xhs-cli' },
+    publisher: { '@type': 'Organization', name: 'xhs-cli', url: SITE_URL },
+  }
 }
+
+export { BLOG_POSTS, blogBySlug } from '@/lib/blog-data'

@@ -3,7 +3,9 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import Footer from '@/components/Footer'
 import Navbar from '@/components/Navbar'
-import { getAllBlogPosts, getBlogPost } from '@/lib/blog'
+import StructuredData from '@/components/StructuredData'
+import { blogBySlug, BLOG_POSTS, buildBlogPostingJsonLd, getBlogPost } from '@/lib/blog'
+import { renderMarkdown } from '@/lib/markdown'
 import { SITE_URL } from '@/lib/site'
 
 type PageProps = {
@@ -11,7 +13,7 @@ type PageProps = {
 }
 
 export function generateStaticParams() {
-  return getAllBlogPosts().map((post) => ({ slug: post.slug }))
+  return BLOG_POSTS.map((post) => ({ slug: post.slug }))
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -35,27 +37,41 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       locale: 'zh_CN',
       publishedTime: post.date || undefined,
     },
+    twitter: {
+      card: 'summary',
+      title: post.title,
+      description: post.description || undefined,
+    },
   }
 }
 
 export default async function BlogPostPage({ params }: PageProps) {
   const { slug } = await params
+  if (!blogBySlug(slug)) notFound()
+
   const post = getBlogPost(slug)
   if (!post) notFound()
 
+  const html = await renderMarkdown(post.body)
+  const jsonLd = buildBlogPostingJsonLd(slug)
+
   return (
     <div className="bg-slate-950 min-h-screen">
+      <StructuredData data={jsonLd} />
       <Navbar />
       <main className="max-w-3xl mx-auto px-6 pt-28 pb-16">
         <Link href="/blog" className="text-sm text-slate-400 hover:text-white transition-colors">
           ← 返回博客
         </Link>
         <article className="mt-6">
-          <header className="mb-8">
+          <header className="mb-8 max-w-none">
             <h1 className="text-3xl font-bold text-white mb-3">{post.title}</h1>
             {post.date ? <time className="text-slate-500 text-sm">{post.date}</time> : null}
+            {post.description ? (
+              <p className="mt-4 text-base leading-relaxed text-slate-400">{post.description}</p>
+            ) : null}
           </header>
-          <div className="text-slate-300 leading-7 whitespace-pre-wrap">{post.body}</div>
+          <div className="blog-prose" dangerouslySetInnerHTML={{ __html: html }} />
         </article>
       </main>
       <Footer />

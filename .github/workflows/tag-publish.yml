@@ -113,4 +113,15 @@ jobs:
 
       - name: Verify published version
         if: ${{ steps.npm_gate.outputs.publish == 'true' }}
-        run: npm view "xhs-cli@${{ steps.version.outputs.target }}" version dist-tags --json --registry=https://registry.npmjs.org/
+        run: |
+          set -euo pipefail
+          target="${{ steps.version.outputs.target }}"
+          for attempt in $(seq 1 10); do
+            if npm view "xhs-cli@${target}" version dist-tags --json --registry=https://registry.npmjs.org/; then
+              exit 0
+            fi
+            echo "npm registry has not exposed xhs-cli@${target} yet (attempt ${attempt}/10); retrying in 6s..."
+            sleep 6
+          done
+          echo "Timed out waiting for xhs-cli@${target} to appear in npm view" >&2
+          exit 1

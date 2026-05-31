@@ -17,7 +17,7 @@
   "scripts": {
     "build": "tsc",
     "build:test": "tsc -p tsconfig.test.json",
-    "test": "npm run build && npm run build:test && node --test dist-test/**/*.test.js",
+    "test": "npm run build && npm run build:test && find dist-test -name '*.test.js' -print0 | xargs -0 node --test",
     "postpublish": "git checkout README.md",
     "dev": "npm run build && node dist/cli/index.js help",
     "deploy": "node scripts/deploy.mjs"

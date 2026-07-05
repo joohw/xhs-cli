@@ -1,4 +1,4 @@
-/** 会话与缓存前缀：由 CLI 解析 `--account` 与 registry 得出 */
+/** 会话与缓存前缀：由当前账号 registry 得出 */
 
 export type ResolvedSession = {
   /** 本次使用的账号 slug */

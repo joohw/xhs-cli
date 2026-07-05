@@ -13,6 +13,14 @@
 - 本地：`npm run build` 后 `node dist/cli/index.js <子命令>`，或全局 `xhs`（`npm link`）。
 - 帮助：`xhs help`。
 
+## 本地调试约定
+
+- 调试需要小红书登录态时，优先复用当前账号对应的本机 Chrome 会话（`~/.xhs-cli/.cache/accounts/<slug>/browser-data`，未配置多账号时为 `~/.xhs-cli/.cache/browser-data`），不要清理或替换用户已有登录态。
+- 若当前会话已经登录，可直接通过 CLI / toolset 作为接口继续调试，例如 `node dist/cli/index.js browser home --limit 3`、`node dist/cli/index.js browser search <关键词>`、`node dist/cli/index.js metrics`。
+- 若调试命令提示未登录、登录态失效或需要验证码/扫码/人工确认，应暂停并请求用户在打开的浏览器中完成登录，再继续调试。
+- 调试或实现站内跳转时，尽可能优先使用页面 DOM 操作（点击现有入口、按钮、菜单、Tab）来导航，保留平台前端状态与上下文参数；只有找不到可用入口时才使用直接 URL 跳转作为兜底。
+- 调试结束后只 detach CDP，不关闭用户浏览器窗口；不要主动删除 `browser-data` 或账号目录。
+
 ## 目录约定（`src/config.ts`）
 
 - 应用根目录：`~/.xhs-cli`（仅作父目录）

@@ -2,11 +2,6 @@
 import { BROWSER_USER_DATA_DIR, ensureAppDataLayout } from '../config.js';
 
 export {
-  hideAgentOperatingIndicator,
-  showAgentOperatingIndicator,
-  SKIP_AGENT_OPERATING_OVERLAY,
-} from './agent_operating_indicator.js';
-export {
   connectBrowser,
   remoteDebuggingPortForUserDataDir,
   wasLastChromeLaunchHeadless,
@@ -23,7 +18,7 @@ export {
   setSessionPage,
 } from './browser_session.js';
 export type { EnsureSessionOptions } from './browser_session.js';
-export { withXhsSessionPage, CREATOR_HOME_URL, isLoginUrl } from './xhs_session_page.js';
+export { withXhsSessionPage, CREATOR_HOME_URL, MAIN_SITE_EXPLORE_URL, isLoginUrl, isMainSiteUrl } from './xhs_session_page.js';
 
 export function getUserDataDir(override?: string): string {
   ensureAppDataLayout();

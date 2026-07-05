@@ -9,6 +9,11 @@ import {
   implPosted,
   implGetNoteDetail,
   implPost,
+  implBrowserCommentPost,
+  implBrowserHomePosts,
+  implBrowserOpenPost,
+  implBrowserSearchPosts,
+  implBrowserUnreadMessages,
   resolveSession,
 } from '../toolset/index.js';
 import {
@@ -19,6 +24,7 @@ import {
   getCurrentAccount,
 } from '../toolset/accountRegistry.js';
 import { resolveAccountSlug } from '../toolset/sessionResolve.js';
+import { DEFAULT_ARTICLE_TEMPLATE_NAME, formatArticleTemplateNames } from '../toolset/articleTemplates.js';
 import { formatPublishedList, listPublished } from '../toolset/publishedRecords.js';
 import {
   parseOpts,
@@ -52,7 +58,8 @@ function printHelp(): void {
   xhs posted [--account <name>]
   xhs detail <noteId> [--account <name>]
   xhs post (--title <标题> (--content <正文> | --content-file <路径>))
-              [--image <路径>]... [--publish | --publish=true|false] [--account <name>]
+              [--image <路径>]... [--publish | --publish=true|false]
+      --image 可重复，至少 1 张、最多 18 张
 
   # 账号（配置存 ~/.xhs-cli/.cache/accounts/registry.json ，每账号独立 browser-data）
   xhs account list
@@ -141,6 +148,106 @@ function runAccountCommand(tail: string[]): void {
   die(`❌ 未知 account 子命令: ${sub}`);
 }
 
+function parsePositiveIntOption(opts: Record<string, string>, name: string): number | undefined {
+  if (opts[name] === undefined) return undefined;
+  const value = Number(opts[name]);
+  if (!Number.isInteger(value) || value < 1) die(`❌ --${name} 需为正整数`);
+  return value;
+}
+
+async function runBrowserCommand(tail: string[]): Promise<void> {
+  const sub = tail[0]?.toLowerCase()?.trim();
+  const rest = tail.slice(1);
+  if (!sub || sub === 'help' || sub === '--help') {
+    die('❌ 用法: browser login | home [--limit <n>] | search <关键词> [--limit <n>] | unread [--limit <n>] | open <noteId|url> | comment <noteId|url> --content <评论>');
+    return;
+  }
+
+  if (sub === 'login') {
+    const { opts, flags } = parseOpts(rest);
+    console.log(await implLogin(resolveSessionCli(accountFromOpts(opts))));
+    return;
+  }
+
+  if (sub === 'home') {
+    const { opts, flags } = parseOpts(rest);
+    console.log(
+      await implBrowserHomePosts(
+        parsePositiveIntOption(opts, 'limit'),
+        resolveSessionCli(accountFromOpts(opts)),
+      ),
+    );
+    return;
+  }
+
+  if (sub === 'search') {
+    const { opts, flags, rest: args } = parseOpts(rest);
+    const keyword = args.join(' ').trim();
+    if (!keyword) {
+      die('❌ 用法: browser search <关键词> [--limit <n>]');
+    }
+    console.log(
+      await implBrowserSearchPosts(
+        keyword,
+        parsePositiveIntOption(opts, 'limit'),
+        resolveSessionCli(accountFromOpts(opts)),
+      ),
+    );
+    return;
+  }
+
+  if (sub === 'unread') {
+    const { opts, flags } = parseOpts(rest);
+    console.log(
+      await implBrowserUnreadMessages(
+        parsePositiveIntOption(opts, 'limit'),
+        resolveSessionCli(accountFromOpts(opts)),
+      ),
+    );
+    return;
+  }
+
+  if (sub === 'open') {
+    const { opts, flags, rest: args } = parseOpts(rest);
+    const noteRef = args[0]?.trim();
+    if (!noteRef) {
+      die('❌ 用法: browser open <noteId|url>');
+    }
+    console.log(await implBrowserOpenPost(noteRef, resolveSessionCli(accountFromOpts(opts))));
+    return;
+  }
+
+  if (sub === 'comment') {
+    const { opts, flags, rest: args } = parseOpts(rest);
+    const noteRef = args[0]?.trim();
+    if (!noteRef) {
+      die('❌ 用法: browser comment <noteId|url> (--content <评论> | --content-file <路径>) [--dry-run]');
+    }
+    let content = opts.content ?? '';
+    if (opts['content-file']) {
+      const p = opts['content-file'];
+      if (!existsSync(p)) {
+        die(`❌ 找不到文件: ${p}`);
+      }
+      content = readFileSync(p, 'utf-8');
+    }
+    if (!content.trim()) {
+      die('❌ 请提供 --content 或 --content-file');
+    }
+    console.log(
+      await implBrowserCommentPost(
+        noteRef,
+        content,
+        { dryRun: flags.has('dry-run') },
+        resolveSessionCli(accountFromOpts(opts)),
+      ),
+    );
+    return;
+  }
+
+  die(`❌ 未知 browser 子命令: ${sub}`);
+}
+
 /**
  * 执行一条子命令（与传入 `process.argv` 切片语义一致，不含 `xhs` 本身）。
  */
@@ -165,6 +272,10 @@ export async function runOneCommand(argv: string[]): Promise<void> {
 
   if (cmd === 'published') {
     die('❌ published 已移除，请使用：xhs posted [--account <name>]');
+  }
+  if (cmd === 'browser') {
+    await runBrowserCommand(tail);
+    return;
   }
 
   if (cmd === 'login') {

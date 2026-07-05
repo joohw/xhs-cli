@@ -6,6 +6,13 @@ import { getOperationData } from './get_metrics.js';
 import { getNoteDetail } from './get_note_detail.js';
 import { getRecentPosts } from './get_recent_posts.js';
 import { postNote, type PostNoteArgs } from './post.js';
+import {
+  commentBrowserPost,
+  getBrowserHomePosts,
+  getBrowserUnreadMessages,
+  openBrowserPost,
+  searchBrowserPosts,
+} from './browserPosts.js';
 import { resolveAccountSlug, resolveSession } from './sessionResolve.js';
 import type { ResolvedSession } from './sessionTypes.js';
 
@@ -46,6 +53,69 @@ export async function implPost(args: PostNoteArgs): Promise<string> {
   try {
     const result = await postNote(args);
     return result.success ? `✅ ${result.message}` : `❌ ${result.message}`;
+  } catch (e) {
+    return `❌ ${e instanceof Error ? e.message : String(e)}`;
+  }
+}
+
+export async function implBrowserHomePosts(
+  limit: number | undefined,
+  session?: ResolvedSession,
+): Promise<string> {
+  try {
+    const s = sessionOrDefault(session);
+    return await getBrowserHomePosts(s, limit);
+  } catch (e) {
+    return `❌ ${e instanceof Error ? e.message : String(e)}`;
+  }
+}
+
+export async function implBrowserSearchPosts(
+  keyword: string,
+  limit: number | undefined,
+  session?: ResolvedSession,
+): Promise<string> {
+  try {
+    const s = sessionOrDefault(session);
+    return await searchBrowserPosts(s, keyword, limit);
+  } catch (e) {
+    return `❌ ${e instanceof Error ? e.message : String(e)}`;
+  }
+}
+
+export async function implBrowserUnreadMessages(
+  limit: number | undefined,
+  session?: ResolvedSession,
+): Promise<string> {
+  try {
+    const s = sessionOrDefault(session);
+    return await getBrowserUnreadMessages(s, limit);
+  } catch (e) {
+    return `❌ ${e instanceof Error ? e.message : String(e)}`;
+  }
+}
+
+export async function implBrowserOpenPost(
+  noteRef: string,
+  session?: ResolvedSession,
+): Promise<string> {
+  try {
+    const s = sessionOrDefault(session);
+    return await openBrowserPost(s, noteRef);
+  } catch (e) {
+    return `❌ ${e instanceof Error ? e.message : String(e)}`;
+  }
+}
+
+export async function implBrowserCommentPost(
+  noteRef: string,
+  content: string,
+  opts: { dryRun?: boolean } | undefined,
+  session?: ResolvedSession,
+): Promise<string> {
+  try {
+    const s = sessionOrDefault(session);
+    return await commentBrowserPost(s, noteRef, content, opts);
   } catch (e) {
     return `❌ ${e instanceof Error ? e.message : String(e)}`;
   }

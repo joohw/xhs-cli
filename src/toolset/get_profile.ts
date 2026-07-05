@@ -32,8 +32,8 @@ export function formatUserProfileText(profile: UserProfile): string {
   ].join('\n');
 }
 
-/** 导航到首页并等待资料加载，供需要主动获取资料的调用方使用。 */
-export async function getUserProfile(page: Page): Promise<UserProfile> {
+/** 创作者中心首页抓取资料（关注/粉丝等） */
+export async function getCreatorUserProfile(page: Page): Promise<UserProfile> {
   await page.goto('https://creator.xiaohongshu.com/new/home', {
     waitUntil: 'domcontentloaded',
     timeout: 30000,
@@ -95,3 +95,52 @@ export async function readUserProfile(page: Page): Promise<UserProfile> {
   }
   return profile;
 }
+
+interface MainSiteMeResponse {
+  success?: boolean;
+  data?: {
+    guest?: boolean;
+    nickname?: string;
+    desc?: string;
+    red_id?: string;
+  };
+}
+
+/** 主站发现页：通过 /user/me 判断登录并读取基础资料 */
+export async function getMainSiteUserProfile(page: Page): Promise<UserProfile | null> {
+  const me = await page.evaluate(async (): Promise<MainSiteMeResponse | null> => {
+    const ctrl = new AbortController();
+    const timer = window.setTimeout(() => ctrl.abort(), 5000);
+    try {
+      const res = await fetch('https://edith.xiaohongshu.com/api/sns/web/v2/user/me', {
+        credentials: 'include',
+        signal: ctrl.signal,
+      });
+      return (await res.json()) as MainSiteMeResponse;
+    } catch {
+      return null;
+    } finally {
+      window.clearTimeout(timer);
+    }
+  });
+
+  const data = me?.data;
+  if (!data || data.guest !== false) {
+    return null;
+  }
+
+  const profile: UserProfile = {
+    accountName: (data.nickname ?? '').trim(),
+    followingCount: '—',
+    fansCount: '—',
+    likesAndCollects: '—',
+    xhsAccountId: (data.red_id ?? '').trim(),
+    description: (data.desc ?? '').trim(),
+    accountStatus: '主站已登录',
+  };
+
+  return validateUserProfile(profile) ? profile : null;
+}
+
+/** @deprecated 请使用 getCreatorUserProfile / getMainSiteUserProfile */
+export const getUserProfile = getCreatorUserProfile;

@@ -1,10 +1,5 @@
 import type { Page } from 'puppeteer-core';
 import {
-  hideAgentOperatingIndicator,
-  showAgentOperatingIndicator,
-  SKIP_AGENT_OPERATING_OVERLAY,
-} from './agent_operating_indicator.js';
-import {
   ensureBrowserSession,
   getBrowserRef,
   getPageRef,
@@ -13,9 +8,14 @@ import {
 } from './browser_session.js';
 
 const CREATOR_HOME_URL = 'https://creator.xiaohongshu.com/new/home';
+const MAIN_SITE_EXPLORE_URL = 'https://www.xiaohongshu.com/explore';
 
 function isLoginUrl(url: string): boolean {
   return url.includes('/login') || url.includes('/signin');
+}
+
+function isMainSiteUrl(url: string): boolean {
+  return url.includes('www.xiaohongshu.com') || url.includes('xiaohongshu.com/explore');
 }
 
 async function pickExistingXhsPage(browser: NonNullable<ReturnType<typeof getBrowserRef>>): Promise<Page | null> {
@@ -61,7 +61,7 @@ async function ensureCreatorLoggedIn(page: Page): Promise<void> {
     currentUrl = page.url();
   }
   if (isLoginUrl(currentUrl)) {
-    throw new Error('未登录，请先运行 xhs login 进行登录');
+    throw new Error('未登录小红书主站，请先运行 xhs login 在发现页完成登录');
   }
 }
 
@@ -87,19 +87,7 @@ export async function withXhsSessionPage<T>(
   await page.bringToFront();
   await ensureCreatorLoggedIn(page);
 
-  const headless = options.headless ?? process.env.XHS_BROWSER_HEADLESS === 'true';
-  if (!headless && !SKIP_AGENT_OPERATING_OVERLAY) {
-    await showAgentOperatingIndicator(page).catch(() => {
-      /* 注入失败不阻断业务 */
-    });
-  }
-  try {
-    return await callback(page);
-  } finally {
-    if (!headless && !SKIP_AGENT_OPERATING_OVERLAY) {
-      await hideAgentOperatingIndicator(page);
-    }
-  }
+  return callback(page);
 }
 
-export { CREATOR_HOME_URL, isLoginUrl };
+export { CREATOR_HOME_URL, MAIN_SITE_EXPLORE_URL, isLoginUrl, isMainSiteUrl };

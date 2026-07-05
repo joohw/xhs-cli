@@ -92,7 +92,7 @@ describe('resolveAccountSlug', () => {
     addStoredAccount({ name: 'u1' });
     const s = resolveSession();
     assert.equal(s.account, 'u1');
-    assert.match(s.browserUserDataDir, /accounts\/u1\/browser-data$/);
+    assert.match(s.browserUserDataDir, /accounts[\\/]u1[\\/]browser-data$/);
     assert.equal(s.cachePathPrefix, 'accounts/u1/');
   });
 });

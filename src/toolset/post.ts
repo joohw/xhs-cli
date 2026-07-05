@@ -1,7 +1,8 @@
-// 发布小红书笔记（无队列：每次调用仅使用传入的标题、正文与本地图片路径）
+// 发布小红书笔记（无队列：每次调用仅使用传入的标题、正文与可选本地图片路径）
 
 import type { Page } from 'puppeteer-core';
-import { getUserDataDir, hideAgentOperatingIndicator, showAgentOperatingIndicator, SKIP_AGENT_OPERATING_OVERLAY, withXhsSessionPage } from '../browser/index.js';
+import { getUserDataDir, withXhsSessionPage } from '../browser/index.js';
+import { existsSync, readFileSync } from 'fs';
 import { ensureAppDataLayout } from '../config.js';
 import {
   PUBLISH_BUTTON_LABELS,
@@ -28,7 +29,7 @@ export type PostNoteArgs = {
   title: string;
   /** 正文 */
   content: string;
-  /** 本地图片路径，顺序即上传顺序，1～18 张 */
+  /** 本地图片路径，顺序即上传顺序；不传时复用小红书官方“文字配图”生成首图 */
   imagePaths: string[];
   /**
    * 为 true 时在填表后自动点击页面「发布」按钮；默认 false，仅填表并提示在浏览器中手动发布或修改。
@@ -83,13 +84,15 @@ async function waitAndClickPublish(page: Page): Promise<void> {
   await new Promise((r) => setTimeout(r, 1500));
 }
 
-async function fillPublishForm(page: Page, params: PostNoteParams, imagePaths: string[]): Promise<void> {
+async function openImagePublishPage(page: Page): Promise<void> {
   await page.goto('https://creator.xiaohongshu.com/publish/publish?from=homepage&target=image', {
     waitUntil: 'domcontentloaded',
     timeout: 30000,
   });
   await new Promise((resolve) => setTimeout(resolve, 3000));
+}
 
+async function uploadLocalImages(page: Page, imagePaths: string[]): Promise<void> {
   await page.waitForSelector('input.upload-input[type="file"]', { timeout: 10000 });
   const uploadInput = await page.$('input.upload-input[type="file"]');
   if (!uploadInput) {
@@ -97,6 +100,109 @@ async function fillPublishForm(page: Page, params: PostNoteParams, imagePaths: s
   }
   await uploadInput.uploadFile(...imagePaths);
   await new Promise((resolve) => setTimeout(resolve, 2000));
+}
+
+async function setContentEditorText(page: Page, content: string): Promise<void> {
+  const contentSet = await page.evaluate((content: string) => {
+    const editor = document.querySelector('div.tiptap.ProseMirror[contenteditable="true"]') as HTMLElement | null;
+    if (!editor) return false;
+    editor.focus();
+    editor.innerHTML = '';
+    const textNode = document.createTextNode(content);
+    editor.appendChild(textNode);
+    editor.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: content }));
+    editor.dispatchEvent(new Event('change', { bubbles: true }));
+    return true;
+  }, content);
+  if (!contentSet) {
+    throw new Error('无法找到内容编辑器');
+  }
+}
+
+async function clickExactText(page: Page, text: string): Promise<boolean> {
+  await page.bringToFront();
+  await new Promise((resolve) => setTimeout(resolve, 150));
+  const target = await page.evaluate((text: string) => {
+    const normalize = (value: string | null | undefined) => (value ?? '').replace(/\s+/g, '');
+    const target = text.replace(/\s+/g, '');
+    const candidates = Array.from(
+      document.querySelectorAll<HTMLElement>('button,[role="button"],div,span'),
+    ).filter((item) => {
+      if (normalize(item.textContent) !== target) return false;
+      const rect = item.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    });
+    const el =
+      candidates.find((item) => item.tagName === 'BUTTON' || item.getAttribute('role') === 'button') ??
+      candidates.reverse()[0];
+    if (!el) return false;
+    const rect = el.getBoundingClientRect();
+    return {
+      x: rect.left + rect.width / 2,
+      y: rect.top + rect.height / 2,
+    };
+  }, text);
+  if (!target) return false;
+  await page.mouse.move(target.x, target.y);
+  await page.mouse.click(target.x, target.y);
+  return true;
+}
+
+async function generateImageFromText(page: Page, content: string): Promise<void> {
+  await page.waitForSelector('input.upload-input[type="file"]', { timeout: 10000 });
+  if (!(await clickExactText(page, '文字配图'))) {
+    throw new Error('未找到「文字配图」入口');
+  }
+  await page.waitForSelector('div.tiptap.ProseMirror[contenteditable="true"]', { timeout: 10000 });
+  await setContentEditorText(page, content);
+  await new Promise((resolve) => setTimeout(resolve, 1200));
+
+  let generated = false;
+  for (let attempt = 0; attempt < 3 && !generated; attempt++) {
+    if (!(await clickExactText(page, '生成图片'))) {
+      throw new Error('未找到「生成图片」按钮');
+    }
+    try {
+      await page.waitForFunction(
+        () => {
+          const text = document.body?.innerText ?? '';
+          return text.includes('选择一个喜欢的卡片') && text.includes('下一步');
+        },
+        { timeout: 20000 },
+      );
+      generated = true;
+    } catch {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+  }
+  if (!generated) {
+    throw new Error('等待文字配图生成超时');
+  }
+
+  let enteredForm = false;
+  for (let attempt = 0; attempt < 3 && !enteredForm; attempt++) {
+    if (!(await clickExactText(page, '下一步'))) {
+      throw new Error('未找到文字配图生成后的「下一步」按钮');
+    }
+    try {
+      await page.waitForFunction(
+        () => {
+          const text = document.body?.innerText ?? '';
+          return text.includes('图片编辑') && !!document.querySelector('input.d-text');
+        },
+        { timeout: 10000 },
+      );
+      enteredForm = true;
+    } catch {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+  }
+  if (!enteredForm) {
+    throw new Error('文字配图已生成，但进入发布表单超时');
+  }
+}
+
+async function fillTitleAndContent(page: Page, params: PostNoteParams): Promise<void> {
 
   try {
     await page.waitForSelector('input.d-text', { timeout: 5000 });
@@ -110,24 +216,21 @@ async function fillPublishForm(page: Page, params: PostNoteParams, imagePaths: s
   }
 
   await page.waitForSelector('div.tiptap.ProseMirror[contenteditable="true"]', { timeout: 5000 });
-  const contentSet = await page.evaluate((content: string) => {
-    const editor = document.querySelector('div.tiptap.ProseMirror[contenteditable="true"]') as HTMLElement;
-    if (!editor) return false;
-    editor.focus();
-    editor.innerHTML = '';
-    const textNode = document.createTextNode(content);
-    editor.appendChild(textNode);
-    editor.dispatchEvent(new Event('input', { bubbles: true }));
-    editor.dispatchEvent(new Event('change', { bubbles: true }));
-    return true;
-  }, params.content);
-  if (!contentSet) {
-    throw new Error('无法找到内容编辑器');
+  await setContentEditorText(page, params.content);
+}
+
+async function fillPublishForm(page: Page, params: PostNoteParams, imagePaths: string[]): Promise<void> {
+  await openImagePublishPage(page);
+  if (imagePaths.length > 0) {
+    await uploadLocalImages(page, imagePaths);
+  } else {
+    await generateImageFromText(page, params.content);
   }
+  await fillTitleAndContent(page, params);
 }
 
 /**
- * 打开发布页并填入标题、正文与图片；会话由 CLI 层 detach，此处只复用浏览器。
+ * 打开发布页并填入标题、正文与图片；无本地图片时使用官方文字配图。会话由 CLI 层 detach，此处只复用浏览器。
  */
 export async function postNote(args: PostNoteArgs): Promise<PostNoteResult> {
   ensureAppDataLayout();
@@ -137,40 +240,30 @@ export async function postNote(args: PostNoteArgs): Promise<PostNoteResult> {
   }
   const params: PostNoteParams = { title, content: args.content };
   validatePostParams(params);
-  validateImagePaths(args.imagePaths);
   const imagePaths = [...args.imagePaths];
+  validateImagePaths(imagePaths);
   const autoPublish = args.publish === true;
   const userDataDir = getUserDataDir(args.browserUserDataDir);
 
   return withXhsSessionPage(async (page) => {
     const browser = page.browser();
     const workPage = await browser.newPage();
-    const showOverlay = !SKIP_AGENT_OPERATING_OVERLAY;
-    try {
-      if (showOverlay) {
-        await showAgentOperatingIndicator(workPage).catch(() => {});
-      }
-      await fillPublishForm(workPage, params, imagePaths);
+    await fillPublishForm(workPage, params, imagePaths);
 
-      if (autoPublish) {
-        await waitAndClickPublish(workPage);
-        return {
-          success: true,
-          publishedVerified: false,
-          message:
-            '已尝试点击「发布」；若页面仍有「同意」或确认弹窗，请在浏览器中完成。CLI 将 detach，窗口保留。',
-        };
-      }
-
+    if (autoPublish) {
+      await waitAndClickPublish(workPage);
       return {
         success: true,
+        publishedVerified: false,
         message:
-          '已填入标题与正文；浏览器窗口保持打开，请在页面中确认后发布或存草稿。CLI 将 detach。',
+          '已尝试点击「发布」；若页面仍有「同意」或确认弹窗，请在浏览器中完成。CLI 将 detach，窗口保留。',
       };
-    } finally {
-      if (showOverlay) {
-        await hideAgentOperatingIndicator(workPage).catch(() => {});
-      }
     }
+
+    return {
+      success: true,
+      message:
+        '已填入标题与正文；浏览器窗口保持打开，请在页面中确认后发布或存草稿。CLI 将 detach。',
+    };
   }, { userDataDir, headless: false });
 }

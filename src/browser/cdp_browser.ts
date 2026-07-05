@@ -219,7 +219,6 @@ export async function connectBrowser(options: ConnectBrowserOptions = {}): Promi
 
   const userArgs = [
     '--disable-infobars',
-    '--disable-blink-features=AutomationControlled',
     '--disable-restore-session-state',
     '--disable-session-crashed-bubble',
     '--no-first-run',

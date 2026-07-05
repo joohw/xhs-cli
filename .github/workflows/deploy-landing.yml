@@ -1,0 +1,40 @@
+name: deploy-landing
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: landing-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Test CLI
+        run: npm test
+      - name: Load deployment configuration
+        env:
+          DEPLOY_CONFIG: ${{ secrets.LANDING_DEPLOY_CONFIG }}
+        run: |
+          test -n "$DEPLOY_CONFIG" || { echo 'Missing LANDING_DEPLOY_CONFIG secret'; exit 1; }
+          umask 077
+          printf '%s\n' "$DEPLOY_CONFIG" > "$RUNNER_TEMP/xhs-landing.env"
+      - name: Build and deploy website
+        run: node scripts/deploy.mjs --config "$RUNNER_TEMP/xhs-landing.env" --tag "$GITHUB_SHA"
+      - name: Verify website
+        run: curl --fail --silent --show-error --retry 6 --retry-delay 10 --retry-all-errors https://xhs-cli.com/ -o /dev/null
+      - name: Remove temporary configuration
+        if: always()
+        run: rm -f "$RUNNER_TEMP/xhs-landing.env"

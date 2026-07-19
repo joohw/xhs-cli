@@ -1,37 +1,35 @@
-'use client'
-
 const examples = [
   {
-    title: '登录账号',
+    title: '添加并登录账号',
     lines: [
+      { prompt: true, text: 'xhs account add brand-a' },
+      { prompt: true, text: 'xhs account use brand-a' },
       { prompt: true, text: 'xhs login' },
-      { prompt: false, text: '打开浏览器，等待登录...' },
-      { prompt: false, text: '认证成功', highlight: true },
+      { prompt: false, text: '登录成功', highlight: true },
     ]
   },
   {
-    title: '获取账户数据',
+    title: '获取运营指标',
     lines: [
-      { prompt: true, text: 'xhs data account' },
-      { prompt: false, text: '粉丝: 10.2K' },
-      { prompt: false, text: '获赞: 245.6K' },
-      { prompt: false, text: '笔记: 58篇' },
+      { prompt: true, text: 'xhs metrics' },
+      { prompt: false, text: '总粉丝: 10.2K  净增: 128' },
+      { prompt: false, text: '点赞: 245.6K  收藏: 86.3K' },
     ]
   },
   {
-    title: '查看已发布笔记',
+    title: '查看最近笔记',
     lines: [
-      { prompt: true, text: 'xhs data posts' },
-      { prompt: false, text: '加载中...' },
-      { prompt: false, text: '共找到 58 篇笔记', highlight: true },
+      { prompt: true, text: 'xhs recent --limit 20' },
+      { prompt: false, text: 'ID: 64f...' },
+      { prompt: false, text: '浏览: 2.1K  点赞: 326', highlight: true },
     ]
   },
   {
     title: '发布新笔记',
     lines: [
       { prompt: true, text: 'xhs post --title "标题" --content "内容" --image ./cover.jpg' },
-      { prompt: false, text: '上传中...' },
-      { prompt: false, text: '发布成功', highlight: true },
+      { prompt: false, text: '已填入标题与正文' },
+      { prompt: false, text: '请在页面中确认后发布', highlight: true },
     ]
   }
 ]
@@ -52,7 +50,7 @@ export default function Demo() {
                   <span className="w-3 h-3 rounded-full bg-slate-700"></span>
                   <span className="w-3 h-3 rounded-full bg-slate-700"></span>
                 </div>
-                <span className="text-slate-500 text-xs ml-2">{ex.title}</span>
+                <span className="text-slate-300 text-xs ml-2">{ex.title}</span>
               </div>
               <div className="p-4 font-mono text-sm space-y-1.5">
                 {ex.lines.map((line, j) => (
@@ -66,7 +64,7 @@ export default function Demo() {
                         ? 'text-white'
                         : (line as { highlight?: boolean }).highlight
                           ? 'text-rose-400'
-                          : 'text-slate-500'
+                          : 'text-slate-300'
                     }>
                       {line.text}
                     </span>

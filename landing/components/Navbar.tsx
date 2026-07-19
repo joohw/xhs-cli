@@ -1,19 +1,19 @@
-'use client'
+import Link from 'next/link'
 
 export default function Navbar() {
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-slate-950/90 backdrop-blur-md border-b border-slate-800 px-6">
       <div className="max-w-6xl mx-auto h-16 flex items-center justify-between">
-        <div>
+        <Link href="/" aria-label="xhs-cli 首页">
           <span className="text-rose-500 font-bold text-lg">xhs</span>
           <span className="text-white font-bold text-lg">-cli</span>
-        </div>
+        </Link>
 
         <nav className="hidden md:flex items-center gap-8">
-          <a href="#features" className="text-slate-400 hover:text-white text-sm transition-colors">功能</a>
-          <a href="#examples" className="text-slate-400 hover:text-white text-sm transition-colors">示例</a>
-          <a href="#faq" className="text-slate-400 hover:text-white text-sm transition-colors">常见问题</a>
-          <a href="/blog" className="text-slate-400 hover:text-white text-sm transition-colors">博客</a>
+          <Link href="/#features" className="text-slate-300 hover:text-white text-sm transition-colors">功能</Link>
+          <Link href="/#examples" className="text-slate-300 hover:text-white text-sm transition-colors">示例</Link>
+          <Link href="/#faq" className="text-slate-300 hover:text-white text-sm transition-colors">常见问题</Link>
+          <Link href="/blog" className="text-slate-300 hover:text-white text-sm transition-colors">博客</Link>
         </nav>
 
         <div className="flex items-center gap-4">
@@ -33,7 +33,7 @@ export default function Navbar() {
             href="https://www.npmjs.com/package/xhs-cli"
             target="_blank"
             rel="noopener noreferrer"
-            className="px-4 py-1.5 bg-rose-500 hover:bg-rose-600 text-white text-sm font-semibold rounded-md transition-colors"
+            className="px-4 py-1.5 bg-rose-700 hover:bg-rose-600 text-white text-sm font-semibold rounded-md transition-colors"
           >
             立即安装
           </a>

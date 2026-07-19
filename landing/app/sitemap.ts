@@ -3,28 +3,34 @@ import { BLOG_POSTS, getAllBlogPosts } from '@/lib/blog'
 import { SITE_URL } from '@/lib/site'
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const now = new Date()
+  const posts = getAllBlogPosts()
+  const blogLastModified = posts[0]?.lastModified
   const entries: MetadataRoute.Sitemap = [
     {
       url: SITE_URL,
-      lastModified: now,
       changeFrequency: 'weekly',
       priority: 1,
     },
     {
       url: `${SITE_URL}/blog`,
-      lastModified: now,
+      ...(blogLastModified ? { lastModified: blogLastModified } : {}),
       changeFrequency: 'weekly',
       priority: 0.9,
     },
+    {
+      url: `${SITE_URL}/security`,
+      lastModified: new Date('2026-07-19T00:00:00+08:00'),
+      changeFrequency: 'yearly',
+      priority: 0.6,
+    },
   ]
 
-  for (const post of BLOG_POSTS) {
+  for (const post of posts) {
     entries.push({
       url: `${SITE_URL}/blog/${post.slug}`,
-      lastModified: getAllBlogPosts().find((item) => item.slug === post.slug)?.lastModified ?? now,
+      lastModified: post.lastModified,
       changeFrequency: 'monthly',
-      priority: post.priority,
+      priority: BLOG_POSTS.find((item) => item.slug === post.slug)?.priority ?? 0.8,
     })
   }
 

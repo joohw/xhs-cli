@@ -4,16 +4,16 @@ import { notFound } from 'next/navigation'
 import Footer from '@/components/Footer'
 import Navbar from '@/components/Navbar'
 import StructuredData from '@/components/StructuredData'
-import { blogBySlug, BLOG_POSTS, buildBlogPostingJsonLd, getBlogPost } from '@/lib/blog'
+import { blogBySlug, buildBlogPostingJsonLd, getAllBlogPosts, getBlogPost } from '@/lib/blog'
 import { renderMarkdown } from '@/lib/markdown'
-import { SITE_URL } from '@/lib/site'
+import { AUTHOR_NAME, AUTHOR_URL, SITE_URL, SOCIAL_IMAGE_URL } from '@/lib/site'
 
 type PageProps = {
   params: Promise<{ slug: string }>
 }
 
 export function generateStaticParams() {
-  return BLOG_POSTS.map((post) => ({ slug: post.slug }))
+  return getAllBlogPosts().map((post) => ({ slug: post.slug }))
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -36,12 +36,24 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       description: post.description || undefined,
       locale: 'zh_CN',
       publishedTime: post.date || undefined,
+      modifiedTime: post.updated || post.date || undefined,
+      authors: [AUTHOR_URL],
+      images: [
+        {
+          url: SOCIAL_IMAGE_URL,
+          width: 1200,
+          height: 630,
+          alt: `${post.title} — xhs-cli`,
+        },
+      ],
     },
     twitter: {
-      card: 'summary',
+      card: 'summary_large_image',
       title: post.title,
       description: post.description || undefined,
+      images: [SOCIAL_IMAGE_URL],
     },
+    authors: [{ name: AUTHOR_NAME, url: AUTHOR_URL }],
   }
 }
 
@@ -66,7 +78,15 @@ export default async function BlogPostPage({ params }: PageProps) {
         <article className="mt-6">
           <header className="mb-8 max-w-none">
             <h1 className="text-3xl font-bold text-white mb-3">{post.title}</h1>
-            {post.date ? <time className="text-slate-500 text-sm">{post.date}</time> : null}
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-slate-300 text-sm">
+              <a href={AUTHOR_URL} target="_blank" rel="noopener noreferrer" className="hover:text-white">
+                作者：{AUTHOR_NAME}
+              </a>
+              {post.date ? <time dateTime={post.date}>发布于 {post.date}</time> : null}
+              {post.updated && post.updated !== post.date ? (
+                <time dateTime={post.updated}>更新于 {post.updated}</time>
+              ) : null}
+            </div>
             {post.description ? (
               <p className="mt-4 text-base leading-relaxed text-slate-400">{post.description}</p>
             ) : null}

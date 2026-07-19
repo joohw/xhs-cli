@@ -6,6 +6,10 @@ export type BlogPostDef = {
 export const BLOG_POSTS: BlogPostDef[] = [
   { slug: 'xhs-cli-automation-intro', priority: 0.85 },
   { slug: 'xhs-content-publishing-workflow', priority: 0.82 },
+  { slug: 'xiaohongshu-multi-account-cli', priority: 0.8 },
+  { slug: 'xiaohongshu-creator-data-cli', priority: 0.78 },
+  { slug: 'xhs-cli-agent-integration', priority: 0.78 },
+  { slug: 'xhs-cli-troubleshooting', priority: 0.76 },
 ]
 
 export type BlogPostMeta = {
@@ -13,6 +17,7 @@ export type BlogPostMeta = {
   title: string
   description: string
   date: string
+  updated: string
   lastModified: Date
 }
 

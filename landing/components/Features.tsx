@@ -1,29 +1,27 @@
-'use client'
-
 const features = [
   {
-    title: '多账号管理',
-    description: '支持同时管理多个小红书账号，认证信息本地加密存储，代运营团队必备。'
+    title: '多账号会话',
+    description: '每个账号使用独立的 browser-data 目录保存浏览器会话，可设置当前账号，也可通过参数临时切换。'
   },
   {
-    title: '运营数据分析',
-    description: '实时获取账户数据、粉丝增长、笔记互动热度，用数据指导运营决策。'
+    title: '创作者运营指标',
+    description: '通过 xhs metrics 查询粉丝、互动、阅读和流量来源等创作者后台指标，并在本地保留缓存。'
   },
   {
-    title: '内容批量管理',
-    description: '批量查看和管理已发布笔记，快速盘点账号内容资产，提升运营效率。'
+    title: '笔记数据查询',
+    description: '使用 recent、detail 与 posted 查看最近笔记、单篇详情和本地发帖归档。'
   },
   {
-    title: '自动发布',
-    description: '通过命令行自动发布图文笔记，支持标题、正文、多图，节省大量重复操作时间。'
+    title: '图文发帖填表',
+    description: '将标题、正文和 1～18 张本地图片填入创作后台。默认停留在页面供人工检查，--publish 可按需尝试点击发布。'
   },
   {
-    title: 'AI Agent 集成',
-    description: '与 AI Agent 无缝集成，支持 MCP 协议，构建全自动化小红书运营工作流。'
+    title: '外部 Agent 集成',
+    description: '宿主应用可注册同名 impl* 并复用 CLI 业务实现；会话型操作使用 ResolvedSession，发帖传入对应账号的 browserUserDataDir。'
   },
   {
     title: '二次开发友好',
-    description: '完善的 Node.js API，可嵌入自有运营系统，灵活定制代运营自动化方案。'
+    description: '核心业务能力集中在 TypeScript toolset 中，便于在自有脚本或运营系统中复用。'
   }
 ]
 

@@ -1,7 +1,13 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { BLOG_POSTS, blogBySlug, blogPathname, type BlogPost, type BlogPostMeta } from '@/lib/blog-data'
-import { SITE_URL } from '@/lib/site'
+import {
+  AUTHOR_NAME,
+  AUTHOR_URL,
+  SITE_NAME,
+  SITE_URL,
+  SOCIAL_IMAGE_URL,
+} from '@/lib/site'
 
 const BLOG_DIR = path.join(process.cwd(), 'content/blog')
 
@@ -36,13 +42,15 @@ function readPostFile(slug: string): BlogPost | null {
   }
 
   const date = meta.date?.trim() ?? ''
-  const lastModified = date ? new Date(`${date}T00:00:00+08:00`) : new Date()
+  const updated = meta.updated?.trim() ?? date
+  const lastModified = updated ? new Date(`${updated}T00:00:00+08:00`) : new Date(0)
 
   return {
     slug,
     title,
     description: meta.description?.trim() ?? '',
     date,
+    updated,
     lastModified,
     body,
   }
@@ -57,11 +65,12 @@ export function getAllBlogPosts(): BlogPostMeta[] {
   return BLOG_POSTS.map((def) => readPostFile(def.slug))
     .filter((post): post is BlogPost => post !== null)
     .sort((a, b) => b.lastModified.getTime() - a.lastModified.getTime())
-    .map(({ slug, title, description, date, lastModified }) => ({
+    .map(({ slug, title, description, date, updated, lastModified }) => ({
       slug,
       title,
       description,
       date,
+      updated,
       lastModified,
     }))
 }
@@ -78,13 +87,19 @@ export function buildBlogPostingJsonLd(slug: string): Record<string, unknown> {
     '@id': `${pageUrl}#article`,
     headline: post.title,
     description: post.description || post.title,
+    image: [SOCIAL_IMAGE_URL],
     datePublished: post.date || undefined,
-    dateModified: post.date || undefined,
+    dateModified: post.updated || post.date || undefined,
     inLanguage: 'zh-CN',
     url: pageUrl,
     mainEntityOfPage: { '@type': 'WebPage', '@id': pageUrl },
-    author: { '@type': 'Organization', name: 'xhs-cli' },
-    publisher: { '@type': 'Organization', name: 'xhs-cli', url: SITE_URL },
+    author: { '@type': 'Person', name: AUTHOR_NAME, url: AUTHOR_URL },
+    publisher: {
+      '@type': 'Organization',
+      name: SITE_NAME,
+      url: SITE_URL,
+      logo: { '@type': 'ImageObject', url: `${SITE_URL}/icon.svg` },
+    },
   }
 }
 

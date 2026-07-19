@@ -36,7 +36,7 @@ const examples = [
 
 export default function Demo() {
   return (
-    <section id="examples" className="py-24 px-6 border-t border-slate-800">
+    <section id="examples" className="py-24 px-6">
       <div className="max-w-6xl mx-auto">
         <h2 className="text-3xl font-bold text-white mb-2">使用示例</h2>
         <p className="text-slate-400 mb-12">简单直观的命令，强大的自动化能力。</p>

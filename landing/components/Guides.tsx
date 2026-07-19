@@ -25,7 +25,7 @@ const guides = [
 
 export default function Guides() {
   return (
-    <section className="py-24 px-6 border-t border-slate-800" aria-labelledby="guides-title">
+    <section className="py-24 px-6" aria-labelledby="guides-title">
       <div className="max-w-6xl mx-auto">
         <h2 id="guides-title" className="text-3xl font-bold text-white mb-2">实用指南</h2>
         <p className="text-slate-300 mb-12">所有命令和安全边界均按当前仓库实现编写。</p>

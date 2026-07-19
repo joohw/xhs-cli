@@ -2,11 +2,6 @@ export default function Hero() {
   return (
     <section className="pt-40 pb-24 px-6">
       <div className="max-w-6xl mx-auto">
-        <div className="inline-flex items-center gap-2 px-3 py-1 bg-slate-800 border border-slate-700 rounded-full mb-8">
-          <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
-          <span className="text-slate-300 text-xs">开源 · GPL-3.0 · Node.js 20+</span>
-        </div>
-
         <h1 className="text-5xl sm:text-6xl font-bold text-white leading-tight tracking-tight mb-6">
           小红书运营
           <br />

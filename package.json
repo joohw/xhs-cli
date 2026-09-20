@@ -21,7 +21,7 @@
     "test": "npm run build && npm run build:test && find dist-test -name '*.test.js' -print0 | xargs -0 node --test",
     "postpublish": "git checkout README.md",
     "dev": "npm run build && node dist/cli/index.js help",
-    "deploy": "node scripts/deploy.mjs"
+    "deploy": "npm --prefix landing run deploy"
   },
   "keywords": [
     "xiaohongshu",
@@ -55,7 +55,6 @@
     "@types/jsdom": "^28.0.3",
     "@types/node": "^24.10.0",
     "jsdom": "^26.1.0",
-    "ssh2": "^1.17.0",
     "typescript": "^5.3.3"
   }
 }

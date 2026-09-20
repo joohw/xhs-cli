@@ -1,0 +1,16 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "xhs-cli",
+  "compatibility_date": "2026-09-20",
+  "assets": {
+    "directory": "./out",
+    "not_found_handling": "404-page",
+    "html_handling": "auto-trailing-slash"
+  },
+  "routes": [
+    {
+      "pattern": "xhs-cli.com",
+      "custom_domain": true
+    }
+  ]
+}

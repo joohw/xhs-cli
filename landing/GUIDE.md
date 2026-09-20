@@ -127,38 +127,30 @@ export const metadata: Metadata = {
 
 ## 🌐 部署方案
 
-### 方案 1: Vercel（推荐）
+### Cloudflare Workers Static Assets（当前生产环境）
+
+站点使用 Next.js 静态导出，构建产物位于 `out/`。
+
 ```bash
 cd landing
-npm install -g vercel
-vercel --prod
-```
-最快、最简单，自动 CI/CD。
-
-### 方案 2: Netlify
-1. 将 `landing` 目录推到 GitHub
-2. 在 Netlify 连接仓库
-3. 自动部署
-
-### 方案 3: Docker
-```bash
-docker build -t xhs-cli-landing .
-docker run -p 3000:3000 xhs-cli-landing
+npm ci
+npm run deploy
 ```
 
-或使用 Docker Compose：
-```bash
-docker-compose up -d
-```
+生产站点由 `landing/wrangler.jsonc` 管理，Worker 名为 `xhs-cli`，静态资源目录为
+`out/`，并使用生成的 `404.html` 处理未命中路由。首次本地部署前先运行
+`wrangler login`；`npm run deploy` 会先构建，再把静态资源发布到 Cloudflare。
 
-### 方案 4: 传统服务器
-```bash
-cd landing
-npm install
-npm run build
-npm start
-```
-然后用 Nginx 反向代理到 `localhost:3000`。
+持续部署由 Cloudflare Workers Builds 的 Git 集成负责：
+
+- Git 仓库：`joohw/xhs-cli`。
+- 根目录：`/landing`。
+- 构建命令：`npm run build`。
+- 部署命令：`npx wrangler deploy`。
+- 生产分支：`main`；推送后自动构建并部署到生产环境。
+- 非生产分支构建已启用，用于生成预览版本。
+- 不需要用于前端部署的 GitHub Actions workflow 或 Cloudflare GitHub Actions Secrets。
+- 自定义域名：`https://xhs-cli.com`。
 
 ## 📊 性能指标
 
@@ -169,7 +161,7 @@ npm start
 - **总计: < 5 秒**
 
 ### 运行时性能
-- 首屏加载: < 1s (Vercel)
+- 首屏加载: < 1s (Cloudflare Workers Static Assets)
 - 交互时间: < 50ms
 - 布局稳定性: 99%+
 - **Lighthouse: 95+**
@@ -255,7 +247,7 @@ const examples = [
 ## 🆘 常见问题
 
 **Q: 页面加载很慢？**
-A: 确保使用 `npm run build` 和 `npm start`（生产模式）。开发模式较慢。
+A: 先运行 `npm run build`，再用 `npm start` 在本地 Workers 运行时预览；开发模式会更慢。
 
 **Q: 如何添加分析？**
 A: 在 `app/layout.tsx` 中添加 Google Analytics 或其他追踪脚本。

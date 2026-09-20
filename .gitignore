@@ -3,7 +3,6 @@ dist/
 dist-test/
 *.log
 .env
-.env.deploy
 .DS_Store
 *.tsbuildinfo
 cache/
